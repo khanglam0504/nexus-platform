@@ -60,11 +60,12 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  accounts   Account[]
-  sessions   Session[]
-  workspaces WorkspaceMember[]
-  messages   Message[]
-  reactions  Reaction[]
+  accounts       Account[]
+  sessions       Session[]
+  workspaces     WorkspaceMember[]
+  messages       Message[]
+  reactions      Reaction[]
+  debateSessions DebateSession[]
 
   @@map("users")
 }
@@ -118,8 +119,10 @@ model Channel {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  messages  Message[]
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages       Message[]
+  channelAgents  ChannelAgent[]
+  debateSessions DebateSession[]
 
   @@unique([workspaceId, name])
   @@map("channels")
@@ -178,8 +181,10 @@ model Agent {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  messages  Message[]
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  channelAgents ChannelAgent[]
+  debateAgents  DebateAgent[]
 
   @@map("agents")
 }
@@ -189,4 +194,85 @@ enum AgentType {
   CODER
   ANALYST
   RESEARCHER
+}
+
+// Multi-Agent Debate Models
+
+// Links agents to channels for debate participation
+model ChannelAgent {
+  id        String   @id @default(cuid())
+  channelId String   @map("channel_id")
+  agentId   String   @map("agent_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, agentId])
+  @@map("channel_agents")
+}
+
+// Debate session for multi-agent discussions
+model DebateSession {
+  id          String        @id @default(cuid())
+  title       String
+  task        String        @db.Text
+  channelId   String        @map("channel_id")
+  status      DebateStatus  @default(PENDING)
+  maxTurns    Int           @default(5) @map("max_turns")
+  currentTurn Int           @default(0) @map("current_turn")
+  summary     String?       @db.Text
+  createdBy   String        @map("created_by")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  completedAt DateTime?     @map("completed_at")
+
+  channel Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  creator User          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  agents  DebateAgent[]
+  turns   DebateTurn[]
+
+  @@index([channelId, status])
+  @@map("debate_sessions")
+}
+
+enum DebateStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Agents participating in a debate
+model DebateAgent {
+  id              String   @id @default(cuid())
+  debateSessionId String   @map("debate_session_id")
+  agentId         String   @map("agent_id")
+  role            String?  // e.g., "advocate", "critic", "moderator"
+  joinedAt        DateTime @default(now()) @map("joined_at")
+
+  debateSession DebateSession @relation(fields: [debateSessionId], references: [id], onDelete: Cascade)
+  agent         Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  turns         DebateTurn[]
+
+  @@unique([debateSessionId, agentId])
+  @@map("debate_agents")
+}
+
+// Individual turns/responses in a debate
+model DebateTurn {
+  id              String   @id @default(cuid())
+  debateSessionId String   @map("debate_session_id")
+  debateAgentId   String   @map("debate_agent_id")
+  turnNumber      Int      @map("turn_number")
+  content         String   @db.Text
+  reasoning       String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  debateSession DebateSession @relation(fields: [debateSessionId], references: [id], onDelete: Cascade)
+  debateAgent   DebateAgent   @relation(fields: [debateAgentId], references: [id], onDelete: Cascade)
+
+  @@index([debateSessionId, turnNumber])
+  @@map("debate_turns")
 }

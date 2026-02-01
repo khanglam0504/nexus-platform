@@ -4,6 +4,7 @@ import { workspaceRouter } from './workspace';
 import { channelRouter } from './channel';
 import { messageRouter } from './message';
 import { agentRouter } from './agent';
+import { debateRouter } from './debate';
 
 export const appRouter = router({
   auth: authRouter,
@@ -11,6 +12,7 @@ export const appRouter = router({
   channel: channelRouter,
   message: messageRouter,
   agent: agentRouter,
+  debate: debateRouter,
 });
 
 export type AppRouter = typeof appRouter;

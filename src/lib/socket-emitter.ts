@@ -25,6 +25,27 @@ export interface AgentRespondingPayload {
   agentName: string;
 }
 
+// Debate event payloads
+export interface DebateTurnPayload {
+  sessionId: string;
+  turn: {
+    id: string;
+    turnNumber: number;
+    content: string;
+    agentId: string;
+    agentName: string;
+    agentAvatar: string | null;
+    createdAt: string;
+  };
+  isComplete: boolean;
+}
+
+export interface DebateStatusPayload {
+  sessionId: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  title: string;
+}
+
 // Get the global socket.io instance
 function getIO(): SocketIOServer | null {
   if (typeof global !== 'undefined' && global.io) {
@@ -61,4 +82,22 @@ export function emitAgentResponding(channelId: string, data: AgentRespondingPayl
 // Check if socket server is available
 export function isSocketAvailable(): boolean {
   return getIO() !== null;
+}
+
+// Emit debate turn to channel
+export function emitDebateTurn(channelId: string, data: DebateTurnPayload): void {
+  const io = getIO();
+  if (io) {
+    io.to(`channel:${channelId}`).emit('debate:turn', data);
+    console.log(`Emitted debate:turn to channel ${channelId}`);
+  }
+}
+
+// Emit debate status change to channel
+export function emitDebateStatusChange(channelId: string, data: DebateStatusPayload): void {
+  const io = getIO();
+  if (io) {
+    io.to(`channel:${channelId}`).emit('debate:status', data);
+    console.log(`Emitted debate:status to channel ${channelId}`);
+  }
 }

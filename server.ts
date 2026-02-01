@@ -18,12 +18,16 @@ interface ServerToClientEvents {
   'user:online': (userId: string) => void;
   'user:offline': (userId: string) => void;
   'agent:responding': (data: AgentRespondingPayload) => void;
+  'debate:turn': (data: DebateTurnPayload) => void;
+  'debate:status': (data: DebateStatusPayload) => void;
 }
 
 interface ClientToServerEvents {
   'channel:join': (channelId: string) => void;
   'channel:leave': (channelId: string) => void;
   'message:typing': (channelId: string) => void;
+  'debate:subscribe': (sessionId: string) => void;
+  'debate:unsubscribe': (sessionId: string) => void;
   authenticate: (token: string) => void;
 }
 
@@ -49,6 +53,26 @@ interface AgentRespondingPayload {
   channelId: string;
   agentId: string;
   agentName: string;
+}
+
+interface DebateTurnPayload {
+  sessionId: string;
+  turn: {
+    id: string;
+    turnNumber: number;
+    content: string;
+    agentId: string;
+    agentName: string;
+    agentAvatar: string | null;
+    createdAt: string;
+  };
+  isComplete: boolean;
+}
+
+interface DebateStatusPayload {
+  sessionId: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  title: string;
 }
 
 // Store the io instance globally for use in API routes
@@ -122,6 +146,18 @@ app.prepare().then(() => {
         userId,
         name: 'User', // In production, fetch from session/cache
       });
+    });
+
+    // Handle debate session subscription
+    socket.on('debate:subscribe', (sessionId: string) => {
+      socket.join(`debate:${sessionId}`);
+      console.log(`Socket ${socket.id} subscribed to debate ${sessionId}`);
+    });
+
+    // Handle debate session unsubscription
+    socket.on('debate:unsubscribe', (sessionId: string) => {
+      socket.leave(`debate:${sessionId}`);
+      console.log(`Socket ${socket.id} unsubscribed from debate ${sessionId}`);
     });
 
     // Handle disconnect
