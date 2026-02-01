@@ -17,6 +17,7 @@ const config: Config = {
           DEFAULT: '#10b981',
           foreground: '#ffffff',
         },
+        foreground: '#f3f4f6',
         secondary: {
           DEFAULT: '#1f2937',
           foreground: '#e5e7eb',
