@@ -7,12 +7,20 @@ import { ChannelList } from './channel-list';
 import { MobileHeader } from './mobile-header';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-media-query';
-import type { Channel, Agent, WorkspaceMember, User, Workspace } from '@prisma/client';
+import type { Channel, WorkspaceMember, User, Workspace, AgentContext, AutonomyLevel, Agent, Prisma } from '@prisma/client';
+
+type HeartbeatStatus = 'online' | 'stale' | 'offline';
+
+type AgentWithContext = Agent & { context: AgentContext | null };
+
+interface AgentWithLifecycle extends AgentWithContext {
+  heartbeatStatus: HeartbeatStatus;
+}
 
 interface WorkspaceWithRelations extends Workspace {
   channels: Channel[];
   members: (WorkspaceMember & { user: Pick<User, 'id' | 'name' | 'image'> })[];
-  agents: Agent[];
+  agents: AgentWithLifecycle[];
 }
 
 interface Props {

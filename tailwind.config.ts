@@ -54,6 +54,25 @@ const config: Config = {
         md: '0.5rem',
         sm: '0.25rem',
       },
+      keyframes: {
+        pulse: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        },
+        'heartbeat-pulse': {
+          '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 currentColor' },
+          '50%': { transform: 'scale(1.1)', boxShadow: '0 0 0 4px transparent' },
+          '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 currentColor' },
+        },
+        'context-loading': {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
+      },
+      animation: {
+        'heartbeat-pulse': 'heartbeat-pulse 2s ease-in-out infinite',
+        'context-loading': 'context-loading 1.5s ease-in-out infinite',
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

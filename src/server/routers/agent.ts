@@ -3,16 +3,37 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { generateAgentResponse } from '@/lib/openclaw-connector';
 import { emitNewMessage, emitAgentResponding } from '@/lib/socket-emitter';
-import type { AgentType } from '@prisma/client';
+import type { AgentType, AutonomyLevel } from '@prisma/client';
+
+// Helper to calculate heartbeat status
+function getHeartbeatStatus(
+  lastHeartbeat: Date | null,
+  intervalSeconds: number
+): 'online' | 'stale' | 'offline' {
+  if (!lastHeartbeat) return 'offline';
+  const now = Date.now();
+  const lastBeat = lastHeartbeat.getTime();
+  const elapsed = (now - lastBeat) / 1000;
+
+  if (elapsed <= intervalSeconds * 1.5) return 'online';
+  if (elapsed <= intervalSeconds * 3) return 'stale';
+  return 'offline';
+}
 
 export const agentRouter = router({
   list: protectedProcedure
     .input(z.object({ workspaceId: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.prisma.agent.findMany({
+      const agents = await ctx.prisma.agent.findMany({
         where: { workspaceId: input.workspaceId, isActive: true },
         orderBy: { name: 'asc' },
+        include: { context: true },
       });
+
+      return agents.map((agent) => ({
+        ...agent,
+        heartbeatStatus: getHeartbeatStatus(agent.lastHeartbeat, agent.heartbeatInterval),
+      }));
     }),
 
   getById: protectedProcedure
@@ -22,6 +43,7 @@ export const agentRouter = router({
         where: { id: input.agentId },
         include: {
           workspace: { select: { id: true, name: true } },
+          context: true,
         },
       });
 
@@ -29,7 +51,10 @@ export const agentRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
       }
 
-      return agent;
+      return {
+        ...agent,
+        heartbeatStatus: getHeartbeatStatus(agent.lastHeartbeat, agent.heartbeatInterval),
+      };
     }),
 
   create: protectedProcedure
@@ -39,19 +64,28 @@ export const agentRouter = router({
         workspaceId: z.string(),
         description: z.string().optional(),
         type: z.enum(['ASSISTANT', 'CODER', 'ANALYST', 'RESEARCHER']).default('ASSISTANT'),
+        autonomyLevel: z.enum(['INTERN', 'SPECIALIST', 'LEAD', 'AUTONOMOUS']).default('SPECIALIST'),
         config: z.record(z.any()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.agent.create({
+      const agent = await ctx.prisma.agent.create({
         data: {
           name: input.name,
           description: input.description,
           type: input.type,
+          autonomyLevel: input.autonomyLevel,
           config: input.config,
           workspaceId: input.workspaceId,
         },
       });
+
+      // Create initial context for the agent
+      await ctx.prisma.agentContext.create({
+        data: { agentId: agent.id },
+      });
+
+      return agent;
     }),
 
   update: protectedProcedure
@@ -61,6 +95,7 @@ export const agentRouter = router({
         name: z.string().min(2).max(50).optional(),
         description: z.string().optional(),
         type: z.enum(['ASSISTANT', 'CODER', 'ANALYST', 'RESEARCHER']).optional(),
+        autonomyLevel: z.enum(['INTERN', 'SPECIALIST', 'LEAD', 'AUTONOMOUS']).optional(),
         config: z.record(z.any()).optional(),
         isActive: z.boolean().optional(),
       })
@@ -231,5 +266,105 @@ export const agentRouter = router({
         agentName: agent.name,
         agentType: agent.type,
       };
+    }),
+
+  // Heartbeat endpoint - agents call this to signal they're alive
+  heartbeat: protectedProcedure
+    .input(z.object({ agentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const agent = await ctx.prisma.agent.update({
+        where: { id: input.agentId },
+        data: { lastHeartbeat: new Date() },
+      });
+
+      return {
+        agentId: agent.id,
+        lastHeartbeat: agent.lastHeartbeat,
+        heartbeatStatus: getHeartbeatStatus(agent.lastHeartbeat, agent.heartbeatInterval),
+      };
+    }),
+
+  // Update heartbeat interval
+  updateHeartbeatInterval: protectedProcedure
+    .input(
+      z.object({
+        agentId: z.string(),
+        intervalSeconds: z.number().min(5).max(300),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.agent.update({
+        where: { id: input.agentId },
+        data: { heartbeatInterval: input.intervalSeconds },
+      });
+    }),
+
+  // Get/Update agent context (working state)
+  getContext: protectedProcedure
+    .input(z.object({ agentId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const context = await ctx.prisma.agentContext.findUnique({
+        where: { agentId: input.agentId },
+      });
+
+      if (!context) {
+        // Create one if it doesn't exist
+        return ctx.prisma.agentContext.create({
+          data: { agentId: input.agentId },
+        });
+      }
+
+      return context;
+    }),
+
+  updateContext: protectedProcedure
+    .input(
+      z.object({
+        agentId: z.string(),
+        workingState: z.record(z.any()).optional(),
+        dailyNotes: z.string().optional(),
+        longTermMemory: z.string().optional(),
+        isLoading: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { agentId, ...updateData } = input;
+
+      return ctx.prisma.agentContext.upsert({
+        where: { agentId },
+        update: updateData,
+        create: { agentId, ...updateData },
+      });
+    }),
+
+  // Set context loading state
+  setContextLoading: protectedProcedure
+    .input(
+      z.object({
+        agentId: z.string(),
+        isLoading: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.agentContext.upsert({
+        where: { agentId: input.agentId },
+        update: { isLoading: input.isLoading },
+        create: { agentId: input.agentId, isLoading: input.isLoading },
+      });
+    }),
+
+  // Update autonomy level
+  updateAutonomyLevel: protectedProcedure
+    .input(
+      z.object({
+        agentId: z.string(),
+        autonomyLevel: z.enum(['INTERN', 'SPECIALIST', 'LEAD', 'AUTONOMOUS']),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.agent.update({
+        where: { id: input.agentId },
+        data: { autonomyLevel: input.autonomyLevel },
+      });
     }),
 });

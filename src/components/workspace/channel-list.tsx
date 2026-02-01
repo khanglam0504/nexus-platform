@@ -14,15 +14,24 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Hash, Plus, Bot, ChevronDown, ChevronRight, Settings } from 'lucide-react';
+import { Hash, Plus, ChevronDown, ChevronRight, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
-import type { Channel, Agent, Workspace } from '@prisma/client';
+import { AgentCard } from '@/components/agent';
+import type { Channel, Workspace, Agent, AgentContext } from '@prisma/client';
+
+type HeartbeatStatus = 'online' | 'stale' | 'offline';
+
+type AgentWithContext = Agent & { context: AgentContext | null };
+
+interface AgentWithLifecycle extends AgentWithContext {
+  heartbeatStatus: HeartbeatStatus;
+}
 
 interface Props {
   workspace: Workspace;
   channels: Channel[];
-  agents: Agent[];
+  agents: AgentWithLifecycle[];
   onChannelSelect?: () => void;
 }
 
@@ -149,10 +158,7 @@ export function ChannelList({ workspace, channels, agents, onChannelSelect }: Pr
             {agentsExpanded && (
               <div className="mt-1 space-y-0.5">
                 {agents.map((agent) => (
-                  <div key={agent.id} className="channel-item">
-                    <Bot className="h-4 w-4 text-primary" />
-                    <span className="truncate">{agent.name}</span>
-                  </div>
+                  <AgentCard key={agent.id} agent={agent} compact />
                 ))}
 
                 {agents.length === 0 && (

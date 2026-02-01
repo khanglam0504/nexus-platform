@@ -3,6 +3,21 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { generateSlug } from '@/lib/utils';
 import { TRPCError } from '@trpc/server';
 
+// Helper to calculate heartbeat status
+function getHeartbeatStatus(
+  lastHeartbeat: Date | null,
+  intervalSeconds: number
+): 'online' | 'stale' | 'offline' {
+  if (!lastHeartbeat) return 'offline';
+  const now = Date.now();
+  const lastBeat = lastHeartbeat.getTime();
+  const elapsed = (now - lastBeat) / 1000;
+
+  if (elapsed <= intervalSeconds * 1.5) return 'online';
+  if (elapsed <= intervalSeconds * 3) return 'stale';
+  return 'offline';
+}
+
 export const workspaceRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.workspace.findMany({
@@ -26,7 +41,10 @@ export const workspaceRouter = router({
           members: {
             include: { user: { select: { id: true, name: true, image: true } } },
           },
-          agents: { where: { isActive: true } },
+          agents: {
+            where: { isActive: true },
+            include: { context: true },
+          },
         },
       });
 
@@ -39,7 +57,16 @@ export const workspaceRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Not a member' });
       }
 
-      return workspace;
+      // Add heartbeat status to each agent
+      const agentsWithStatus = workspace.agents.map((agent) => ({
+        ...agent,
+        heartbeatStatus: getHeartbeatStatus(agent.lastHeartbeat, agent.heartbeatInterval),
+      }));
+
+      return {
+        ...workspace,
+        agents: agentsWithStatus,
+      };
     }),
 
   create: protectedProcedure

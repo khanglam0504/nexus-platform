@@ -3,6 +3,21 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { WorkspaceLayout } from '@/components/workspace/workspace-layout';
 
+// Helper to calculate heartbeat status
+function getHeartbeatStatus(
+  lastHeartbeat: Date | null,
+  intervalSeconds: number
+): 'online' | 'stale' | 'offline' {
+  if (!lastHeartbeat) return 'offline';
+  const now = Date.now();
+  const lastBeat = lastHeartbeat.getTime();
+  const elapsed = (now - lastBeat) / 1000;
+
+  if (elapsed <= intervalSeconds * 1.5) return 'online';
+  if (elapsed <= intervalSeconds * 3) return 'stale';
+  return 'offline';
+}
+
 interface Props {
   params: { slug: string };
   children: React.ReactNode;
@@ -22,7 +37,10 @@ export default async function WorkspaceSlugLayout({ params, children }: Props) {
       members: {
         include: { user: { select: { id: true, name: true, image: true } } },
       },
-      agents: { where: { isActive: true } },
+      agents: {
+        where: { isActive: true },
+        include: { context: true },
+      },
     },
   });
 
@@ -35,8 +53,19 @@ export default async function WorkspaceSlugLayout({ params, children }: Props) {
     redirect('/workspace');
   }
 
+  // Transform agents to include heartbeat status
+  const agentsWithStatus = workspace.agents.map((agent) => ({
+    ...agent,
+    heartbeatStatus: getHeartbeatStatus(agent.lastHeartbeat, agent.heartbeatInterval),
+  }));
+
+  const workspaceWithStatus = {
+    ...workspace,
+    agents: agentsWithStatus,
+  };
+
   return (
-    <WorkspaceLayout workspace={workspace} currentUser={session.user}>
+    <WorkspaceLayout workspace={workspaceWithStatus} currentUser={session.user}>
       {children}
     </WorkspaceLayout>
   );

@@ -189,21 +189,27 @@ model Reaction {
 }
 
 model Agent {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  type        AgentType   @default(ASSISTANT)
-  avatar      String?
-  config      Json?
-  workspaceId String      @map("workspace_id")
-  isActive    Boolean     @default(true) @map("is_active")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  id                String        @id @default(cuid())
+  name              String
+  description       String?
+  type              AgentType     @default(ASSISTANT)
+  avatar            String?
+  config            Json?
+  workspaceId       String        @map("workspace_id")
+  isActive          Boolean       @default(true) @map("is_active")
+  // Heartbeat/Scheduler fields
+  lastHeartbeat     DateTime?     @map("last_heartbeat")
+  heartbeatInterval Int           @default(30) @map("heartbeat_interval") // seconds
+  // Autonomy Level
+  autonomyLevel     AutonomyLevel @default(SPECIALIST) @map("autonomy_level")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
 
   workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   messages      Message[]
   channelAgents ChannelAgent[]
   debateAgents  DebateAgent[]
+  context       AgentContext?
 
   @@map("agents")
 }
@@ -213,6 +219,13 @@ enum AgentType {
   CODER
   ANALYST
   RESEARCHER
+}
+
+enum AutonomyLevel {
+  INTERN     // Needs approval for everything
+  SPECIALIST // Can execute within defined scope
+  LEAD       // Can approve other agents' work
+  AUTONOMOUS // Full autonomy
 }
 
 // Multi-Agent Debate Models
@@ -294,4 +307,24 @@ model DebateTurn {
 
   @@index([debateSessionId, turnNumber])
   @@map("debate_turns")
+}
+
+// Agent Context - Working state and memory for agents
+model AgentContext {
+  id             String   @id @default(cuid())
+  agentId        String   @unique @map("agent_id")
+  // Current working state (JSON: currentTask, lastAction, pendingItems)
+  workingState   Json?    @map("working_state")
+  // Daily notes for the agent
+  dailyNotes     String?  @db.Text @map("daily_notes")
+  // Long-term memory/context
+  longTermMemory String?  @db.Text @map("long_term_memory")
+  // Loading state flag
+  isLoading      Boolean  @default(false) @map("is_loading")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_contexts")
 }
