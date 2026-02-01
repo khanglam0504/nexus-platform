@@ -4,8 +4,21 @@ import { useState } from 'react';
 import { MessageList } from './message-list';
 import { MessageInput } from './message-input';
 import { ThreadPanel } from './thread-panel';
-import { Hash, Users } from 'lucide-react';
+import {
+  Hash,
+  Users,
+  Pin,
+  Bell,
+  Search,
+  Settings,
+  Bot,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { Channel, Agent } from '@prisma/client';
 
 interface Props {
@@ -16,31 +29,112 @@ interface Props {
 
 export function ChatArea({ channel, agents, currentUserId }: Props) {
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [showMembers, setShowMembers] = useState(false);
 
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Main Chat */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Channel Header */}
-        <header className="h-14 border-b border-border px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <Hash className="h-5 w-5 text-muted-foreground" />
-            <h1 className="font-semibold">{channel.name}</h1>
+        <header className="h-14 border-b border-border px-4 flex items-center justify-between shrink-0 bg-card/50">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+                <Hash className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-semibold truncate">{channel.name}</h1>
+                {channel.description && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {channel.description}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Active Agents Indicator */}
+            {agents.length > 0 && (
+              <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-xs">
+                <Bot className="h-3 w-3 text-primary" />
+                <span className="text-primary font-medium">
+                  {agents.length} AI {agents.length === 1 ? 'agent' : 'agents'}
+                </span>
+              </div>
+            )}
           </div>
-          <Button variant="ghost" size="icon">
-            <Users className="h-5 w-5" />
-          </Button>
+
+          {/* Header Actions */}
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Pin className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Pinned messages</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Bell className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Notifications</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Search in channel</TooltipContent>
+            </Tooltip>
+
+            <div className="w-px h-5 bg-border mx-1" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showMembers ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowMembers(!showMembers)}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {showMembers ? 'Hide members' : 'Show members'}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Channel settings</TooltipContent>
+            </Tooltip>
+          </div>
         </header>
 
         {/* Messages */}
         <MessageList
           channelId={channel.id}
+          channelName={channel.name}
           currentUserId={currentUserId}
           onThreadClick={setSelectedThread}
         />
 
         {/* Input */}
-        <MessageInput channelId={channel.id} agents={agents} />
+        <MessageInput
+          channelId={channel.id}
+          agents={agents}
+          placeholder={`Message #${channel.name}`}
+        />
       </div>
 
       {/* Thread Panel */}
