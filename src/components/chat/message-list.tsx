@@ -161,6 +161,7 @@ export function MessageList({
                   )}
                   <MessageItem
                     message={message}
+                    channelId={channelId}
                     currentUserId={currentUserId}
                     onThreadClick={() => onThreadClick(message.id)}
                     replyCount={message._count.replies}

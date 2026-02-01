@@ -19,6 +19,9 @@
 dist/
 bin/
 
+# user uploads
+public/uploads/
+
 # production
 /build
 

@@ -135,24 +135,43 @@ enum ChannelType {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  userId    String?  @map("user_id")
-  agentId   String?  @map("agent_id")
-  channelId String   @map("channel_id")
-  threadId  String?  @map("thread_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id @default(cuid())
+  content   String    @db.Text
+  userId    String?   @map("user_id")
+  agentId   String?   @map("agent_id")
+  channelId String    @map("channel_id")
+  threadId  String?   @map("thread_id")
+  isPinned  Boolean   @default(false) @map("is_pinned")
+  pinnedAt  DateTime? @map("pinned_at")
+  pinnedBy  String?   @map("pinned_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
-  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  agent     Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  parent    Message?  @relation("Thread", fields: [threadId], references: [id], onDelete: SetNull)
-  replies   Message[] @relation("Thread")
-  reactions Reaction[]
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  agent       Agent?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  channel     Channel          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parent      Message?         @relation("Thread", fields: [threadId], references: [id], onDelete: SetNull)
+  replies     Message[]        @relation("Thread")
+  reactions   Reaction[]
+  attachments FileAttachment[]
 
   @@index([channelId, createdAt])
+  @@index([channelId, isPinned])
   @@map("messages")
+}
+
+model FileAttachment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  type      String
+  size      Int
+  messageId String   @map("message_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("file_attachments")
 }
 
 model Reaction {

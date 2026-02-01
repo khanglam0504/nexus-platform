@@ -1,11 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MessageSquare, SmilePlus, Bot } from 'lucide-react';
 import { formatDate, getInitials } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { EmojiPicker } from './emoji-picker';
+import { trpc } from '@/lib/trpc';
 
 interface MessageUser {
   id: string;
@@ -33,6 +37,7 @@ interface Props {
       user: { id: string; name: string | null };
     }>;
   };
+  channelId?: string;
   currentUserId: string;
   onThreadClick: () => void;
   replyCount?: number;
@@ -41,14 +46,38 @@ interface Props {
 
 export function MessageItem({
   message,
+  channelId,
   currentUserId,
   onThreadClick,
   replyCount = 0,
   isThreadReply = false,
 }: Props) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const utils = trpc.useUtils();
+
   const sender = message.user || message.agent;
   const isAgent = !!message.agent;
   const isOwnMessage = message.user?.id === currentUserId;
+
+  const addReaction = trpc.message.addReaction.useMutation({
+    onSuccess: () => {
+      // Invalidate relevant queries
+      if (channelId) {
+        utils.message.list.invalidate({ channelId });
+      }
+      // Also invalidate any thread queries
+      utils.message.getThread.invalidate();
+      setPickerOpen(false);
+    },
+  });
+
+  const handleEmojiSelect = (emoji: string) => {
+    addReaction.mutate({ messageId: message.id, emoji });
+  };
+
+  const handleReactionClick = (emoji: string) => {
+    addReaction.mutate({ messageId: message.id, emoji });
+  };
 
   // Group reactions by emoji
   const groupedReactions = message.reactions.reduce(
@@ -92,19 +121,31 @@ export function MessageItem({
         {/* Reactions */}
         {Object.keys(groupedReactions).length > 0 && (
           <div className="flex gap-1 mt-2 flex-wrap">
-            {Object.entries(groupedReactions).map(([emoji, users]) => (
-              <Tooltip key={emoji}>
-                <TooltipTrigger asChild>
-                  <button className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs hover:bg-secondary/80">
-                    <span>{emoji}</span>
-                    <span>{users.length}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {users.map((u) => u.name || 'Unknown').join(', ')}
-                </TooltipContent>
-              </Tooltip>
-            ))}
+            {Object.entries(groupedReactions).map(([emoji, users]) => {
+              const hasOwnReaction = users.some((u) => u.id === currentUserId);
+              return (
+                <Tooltip key={emoji}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleReactionClick(emoji)}
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors',
+                        'hover:bg-secondary/80',
+                        hasOwnReaction
+                          ? 'bg-primary/20 ring-1 ring-primary/30'
+                          : 'bg-secondary'
+                      )}
+                    >
+                      <span>{emoji}</span>
+                      <span>{users.length}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {users.map((u) => u.name || 'Unknown').join(', ')}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
           </div>
         )}
 
@@ -122,14 +163,21 @@ export function MessageItem({
 
       {/* Actions */}
       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-start gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7">
-              <SmilePlus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Add reaction</TooltipContent>
-        </Tooltip>
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <SmilePlus className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Add reaction</TooltipContent>
+          </Tooltip>
+          <PopoverContent className="w-auto p-0" align="start">
+            <EmojiPicker onSelect={handleEmojiSelect} />
+          </PopoverContent>
+        </Popover>
 
         {!isThreadReply && (
           <Tooltip>

@@ -76,6 +76,23 @@ export const workspaceRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Check if user has permission to invite (OWNER or ADMIN)
+      const inviter = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (!inviter || !['OWNER', 'ADMIN'].includes(inviter.role)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only OWNER or ADMIN can invite members',
+        });
+      }
+
       const user = await ctx.prisma.user.findUnique({
         where: { email: input.email },
       });
@@ -105,6 +122,172 @@ export const workspaceRouter = router({
         },
       });
 
+      return { success: true };
+    }),
+
+  // List all members of a workspace
+  listMembers: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Verify user is a member
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (!member) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not a workspace member' });
+      }
+
+      return ctx.prisma.workspaceMember.findMany({
+        where: { workspaceId: input.workspaceId },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
+        orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+      });
+    }),
+
+  // Get current user's role in workspace
+  getCurrentRole: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (!member) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not a workspace member' });
+      }
+
+      return { role: member.role };
+    }),
+
+  // Update member role (OWNER only)
+  updateMemberRole: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        memberId: z.string(),
+        role: z.enum(['ADMIN', 'MEMBER']),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if current user is OWNER
+      const currentUser = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (!currentUser || currentUser.role !== 'OWNER') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only OWNER can change member roles',
+        });
+      }
+
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: { id: input.memberId },
+      });
+
+      if (!member) {
+        throw new TRPCError({ code: 'NOT_FOUND' });
+      }
+
+      // Cannot change OWNER role
+      if (member.role === 'OWNER') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Cannot change owner role',
+        });
+      }
+
+      // Cannot change own role
+      if (member.userId === ctx.session.user.id) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Cannot change own role',
+        });
+      }
+
+      return ctx.prisma.workspaceMember.update({
+        where: { id: input.memberId },
+        data: { role: input.role },
+      });
+    }),
+
+  // Remove member (OWNER or ADMIN)
+  removeMember: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        memberId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check current user's role
+      const currentUser = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (!currentUser || !['OWNER', 'ADMIN'].includes(currentUser.role)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Insufficient permissions',
+        });
+      }
+
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: { id: input.memberId },
+      });
+
+      if (!member) {
+        throw new TRPCError({ code: 'NOT_FOUND' });
+      }
+
+      // Cannot remove OWNER
+      if (member.role === 'OWNER') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Cannot remove owner',
+        });
+      }
+
+      // ADMIN can only remove MEMBER
+      if (currentUser.role === 'ADMIN' && member.role !== 'MEMBER') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Admin can only remove members',
+        });
+      }
+
+      // Cannot remove self
+      if (member.userId === ctx.session.user.id) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Cannot remove yourself',
+        });
+      }
+
+      await ctx.prisma.workspaceMember.delete({ where: { id: input.memberId } });
       return { success: true };
     }),
 });

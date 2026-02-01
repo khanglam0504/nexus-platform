@@ -23,9 +23,10 @@ interface Props {
   workspace: Workspace;
   channels: Channel[];
   agents: Agent[];
+  onChannelSelect?: () => void;
 }
 
-export function ChannelList({ workspace, channels, agents }: Props) {
+export function ChannelList({ workspace, channels, agents, onChannelSelect }: Props) {
   const params = useParams();
   const currentChannelId = params.channelId as string;
   const [channelsExpanded, setChannelsExpanded] = useState(true);
@@ -56,9 +57,11 @@ export function ChannelList({ workspace, channels, agents }: Props) {
       {/* Workspace Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="font-semibold truncate">{workspace.name}</h2>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Settings className="h-4 w-4" />
-        </Button>
+        <Link href={`/workspace/${workspace.slug}/settings`}>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </Link>
       </div>
 
       <ScrollArea className="flex-1">
@@ -87,6 +90,7 @@ export function ChannelList({ workspace, channels, agents }: Props) {
                       'channel-item',
                       currentChannelId === channel.id && 'active'
                     )}
+                    onClick={() => onChannelSelect?.()}
                   >
                     <Hash className="h-4 w-4" />
                     <span className="truncate">{channel.name}</span>

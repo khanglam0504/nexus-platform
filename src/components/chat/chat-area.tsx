@@ -4,6 +4,10 @@ import { useState } from 'react';
 import { MessageList } from './message-list';
 import { MessageInput } from './message-input';
 import { ThreadPanel } from './thread-panel';
+import { SearchPanel } from './search-panel';
+import { PinnedPanel } from './pinned-panel';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-media-query';
 import {
   Hash,
   Users,
@@ -19,6 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { trpc } from '@/lib/trpc';
 import type { Channel, Agent } from '@prisma/client';
 
 interface Props {
@@ -30,9 +35,21 @@ interface Props {
 export function ChatArea({ channel, agents, currentUserId }: Props) {
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [showMembers, setShowMembers] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showPinned, setShowPinned] = useState(false);
+  const isMobile = useIsMobile();
+
+  const { data: pinnedCount } = trpc.message.pinnedCount.useQuery({
+    channelId: channel.id,
+  });
+
+  const handleSearchSelect = (messageId: string) => {
+    setShowSearch(false);
+    // Could scroll to message if we implement refs
+  };
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-1 overflow-hidden relative">
       {/* Main Chat */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Channel Header */}
@@ -65,34 +82,54 @@ export function ChatArea({ channel, agents, currentUserId }: Props) {
 
           {/* Header Actions */}
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Pin className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Pinned messages</TooltipContent>
-            </Tooltip>
+            {/* Pin - hide on mobile to save space */}
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showPinned ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8 relative"
+                    onClick={() => setShowPinned(!showPinned)}
+                  >
+                    <Pin className="h-4 w-4" />
+                    {pinnedCount && pinnedCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center">
+                        {pinnedCount}
+                      </span>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Pinned messages</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Bell className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Notifications</TooltipContent>
+              </Tooltip>
+            </div>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Bell className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Notifications</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowSearch(true)}
+                >
                   <Search className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Search in channel</TooltipContent>
             </Tooltip>
 
-            <div className="w-px h-5 bg-border mx-1" />
+            <div className="hidden sm:block w-px h-5 bg-border mx-1" />
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -110,14 +147,16 @@ export function ChatArea({ channel, agents, currentUserId }: Props) {
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Channel settings</TooltipContent>
-            </Tooltip>
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Channel settings</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </header>
 
@@ -137,15 +176,60 @@ export function ChatArea({ channel, agents, currentUserId }: Props) {
         />
       </div>
 
-      {/* Thread Panel */}
-      {selectedThread && (
-        <ThreadPanel
-          messageId={selectedThread}
+      {/* Search Panel Overlay */}
+      {showSearch && (
+        <SearchPanel
           channelId={channel.id}
-          currentUserId={currentUserId}
-          onClose={() => setSelectedThread(null)}
+          onClose={() => setShowSearch(false)}
+          onSelectMessage={handleSearchSelect}
         />
       )}
+
+      {/* Thread Panel - Desktop: side-by-side, Mobile: sheet */}
+      {selectedThread &&
+        (isMobile ? (
+          <Sheet
+            open={!!selectedThread}
+            onOpenChange={() => setSelectedThread(null)}
+          >
+            <SheetContent side="right" className="p-0 w-full sm:max-w-lg">
+              <ThreadPanel
+                messageId={selectedThread}
+                channelId={channel.id}
+                currentUserId={currentUserId}
+                onClose={() => setSelectedThread(null)}
+              />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <ThreadPanel
+            messageId={selectedThread}
+            channelId={channel.id}
+            currentUserId={currentUserId}
+            onClose={() => setSelectedThread(null)}
+          />
+        ))}
+
+      {/* Pinned Panel - Desktop: side-by-side, Mobile: sheet */}
+      {showPinned &&
+        !selectedThread &&
+        (isMobile ? (
+          <Sheet open={showPinned} onOpenChange={setShowPinned}>
+            <SheetContent side="right" className="p-0 w-full sm:max-w-lg">
+              <PinnedPanel
+                channelId={channel.id}
+                currentUserId={currentUserId}
+                onClose={() => setShowPinned(false)}
+              />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <PinnedPanel
+            channelId={channel.id}
+            currentUserId={currentUserId}
+            onClose={() => setShowPinned(false)}
+          />
+        ))}
     </div>
   );
 }

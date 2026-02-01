@@ -1,10 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { MessageItem } from './message-item';
 import { MessageInput } from './message-input';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Users } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
 interface Props {
@@ -20,11 +21,32 @@ export function ThreadPanel({ messageId, channelId, currentUserId, onClose }: Pr
     { refetchInterval: 3000 }
   );
 
+  // Count unique participants in thread
+  const participantCount = useMemo(() => {
+    if (!data) return 0;
+    const users = new Set<string>();
+    if (data.parent?.user?.id) users.add(data.parent.user.id);
+    data.replies?.forEach((r) => {
+      if (r.user?.id) users.add(r.user.id);
+    });
+    return users.size;
+  }, [data]);
+
   return (
-    <div className="w-96 border-l border-border flex flex-col bg-card">
+    <div className="w-full lg:w-96 border-l border-border flex flex-col bg-card">
       {/* Header */}
       <header className="h-14 border-b border-border px-4 flex items-center justify-between shrink-0">
-        <h2 className="font-semibold">Thread</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-semibold">Thread</h2>
+          {participantCount > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Users className="h-3 w-3" />
+              <span>
+                {participantCount} {participantCount === 1 ? 'person' : 'people'}
+              </span>
+            </div>
+          )}
+        </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -43,8 +65,9 @@ export function ThreadPanel({ messageId, channelId, currentUserId, onClose }: Pr
                 <MessageItem
                   message={{
                     ...data.parent,
-                    reactions: [],
+                    reactions: data.parent.reactions || [],
                   }}
+                  channelId={channelId}
                   currentUserId={currentUserId}
                   onThreadClick={() => {}}
                   isThreadReply
@@ -62,8 +85,9 @@ export function ThreadPanel({ messageId, channelId, currentUserId, onClose }: Pr
                       key={reply.id}
                       message={{
                         ...reply,
-                        reactions: [],
+                        reactions: reply.reactions || [],
                       }}
+                      channelId={channelId}
                       currentUserId={currentUserId}
                       onThreadClick={() => {}}
                       isThreadReply

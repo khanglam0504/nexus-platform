@@ -18,7 +18,13 @@ import {
 import { Send, Bot, AtSign, Paperclip, Smile, Loader2, X, Sparkles } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { FilePreview } from './file-preview';
 import type { Agent } from '@prisma/client';
+
+interface FileItem {
+  file: File;
+  preview?: string;
+}
 
 interface Props {
   channelId: string;
@@ -31,13 +37,17 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
   const [content, setContent] = useState('');
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
 
   const sendMessage = trpc.message.send.useMutation({
     onSuccess: () => {
       setContent('');
+      setFiles([]);
       utils.message.list.invalidate({ channelId });
       if (threadId) {
         utils.message.getThread.invalidate({ messageId: threadId });
@@ -49,6 +59,7 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
     onSuccess: () => {
       setContent('');
       setSelectedAgent(null);
+      setFiles([]);
       utils.message.list.invalidate({ channelId });
       if (threadId) {
         utils.message.getThread.invalidate({ messageId: threadId });
@@ -64,22 +75,74 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
     }
   }, [content]);
 
-  const handleSubmit = () => {
-    if (!content.trim()) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    const newFiles: FileItem[] = selectedFiles.map((file) => ({
+      file,
+      preview: file.type.startsWith('image/')
+        ? URL.createObjectURL(file)
+        : undefined,
+    }));
+    setFiles((prev) => [...prev, ...newFiles].slice(0, 5)); // Max 5 files
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
-    if (selectedAgent) {
-      chatWithAgent.mutate({
-        agentId: selectedAgent.id,
-        channelId,
-        message: content.trim(),
-        threadId,
-      });
-    } else {
-      sendMessage.mutate({
-        content: content.trim(),
-        channelId,
-        threadId,
-      });
+  const removeFile = (index: number) => {
+    setFiles((prev) => {
+      const removed = prev[index];
+      if (removed.preview) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const uploadFiles = async (): Promise<
+    Array<{ url: string; name: string; type: string; size: number }>
+  > => {
+    const uploaded: Array<{ url: string; name: string; type: string; size: number }> = [];
+    for (const { file } of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        uploaded.push({
+          url: data.url,
+          name: data.name,
+          type: data.type,
+          size: data.size,
+        });
+      }
+    }
+    return uploaded;
+  };
+
+  const handleSubmit = async () => {
+    if (!content.trim() && files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      let attachments: Array<{ url: string; name: string; type: string; size: number }> = [];
+      if (files.length > 0) {
+        attachments = await uploadFiles();
+      }
+
+      if (selectedAgent) {
+        chatWithAgent.mutate({
+          agentId: selectedAgent.id,
+          channelId,
+          message: content.trim(),
+          threadId,
+        });
+      } else {
+        sendMessage.mutate({
+          content: content.trim(),
+          channelId,
+          threadId,
+          attachments: attachments.length > 0 ? attachments : undefined,
+        });
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -90,7 +153,7 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
     }
   };
 
-  const isPending = sendMessage.isPending || chatWithAgent.isPending;
+  const isPending = sendMessage.isPending || chatWithAgent.isPending || isUploading;
 
   return (
     <div className="px-4 pb-4">
@@ -118,11 +181,15 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
         </div>
       )}
 
+      {/* File Preview */}
+      <FilePreview files={files} onRemove={removeFile} />
+
       {/* Input Container */}
       <div
         className={cn(
           'flex items-end gap-2 bg-secondary/50 border border-border p-2 transition-all duration-200',
           selectedAgent ? 'rounded-b-lg rounded-t-none border-primary/20' : 'rounded-xl',
+          files.length > 0 && !selectedAgent && 'rounded-t-none border-t-0',
           isFocused && 'ring-1 ring-primary border-primary/50',
           isPending && 'opacity-70'
         )}
@@ -175,9 +242,27 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
             </DropdownMenu>
           )}
 
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-8 w-8 shrink-0 rounded-lg',
+                  files.length > 0 && 'text-primary bg-primary/10'
+                )}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Paperclip className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -218,11 +303,11 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
           <TooltipTrigger asChild>
             <Button
               onClick={handleSubmit}
-              disabled={!content.trim() || isPending}
+              disabled={(!content.trim() && files.length === 0) || isPending}
               size="icon"
               className={cn(
                 'h-8 w-8 shrink-0 rounded-lg transition-all',
-                content.trim() && !isPending
+                (content.trim() || files.length > 0) && !isPending
                   ? 'bg-primary hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground'
               )}
