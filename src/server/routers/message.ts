@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '@/server/trpc';
+import { emitNewMessage } from '@/lib/socket-emitter';
 
 export const messageRouter = router({
   list: protectedProcedure
@@ -70,7 +71,7 @@ export const messageRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.message.create({
+      const message = await ctx.prisma.message.create({
         data: {
           content: input.content,
           channelId: input.channelId,
@@ -81,6 +82,20 @@ export const messageRouter = router({
           user: { select: { id: true, name: true, image: true } },
         },
       });
+
+      // Emit real-time socket event
+      emitNewMessage(input.channelId, {
+        id: message.id,
+        content: message.content,
+        channelId: message.channelId,
+        userId: message.userId,
+        agentId: message.agentId,
+        threadId: message.threadId,
+        createdAt: message.createdAt.toISOString(),
+        user: message.user || undefined,
+      });
+
+      return message;
     }),
 
   addReaction: protectedProcedure

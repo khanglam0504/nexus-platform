@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageItem } from './message-item';
 import { trpc } from '@/lib/trpc';
-import { Loader2, Hash, MessageSquare, Sparkles } from 'lucide-react';
+import { useSocket } from '@/hooks/use-socket';
+import { Loader2, Hash, MessageSquare, Sparkles, Bot } from 'lucide-react';
 
 interface Props {
   channelId: string;
@@ -21,11 +22,19 @@ export function MessageList({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Use socket for real-time updates instead of polling
+  const { isConnected, typingUsers, respondingAgent } = useSocket(channelId);
+
   const { data, isLoading, error } = trpc.message.list.useQuery(
     { channelId, limit: 50 },
-    { refetchInterval: 3000 } // Poll for new messages (temporary until Socket.io)
+    {
+      // No polling needed - socket handles real-time updates
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
+    }
   );
 
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -160,6 +169,41 @@ export function MessageList({
               );
             })}
           </>
+        )}
+
+        {/* Typing Indicator */}
+        {typingUsers.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground animate-pulse">
+            <div className="flex space-x-1">
+              <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span>
+              {typingUsers.length === 1
+                ? `${typingUsers[0]} is typing...`
+                : `${typingUsers.length} people are typing...`}
+            </span>
+          </div>
+        )}
+
+        {/* Agent Responding Indicator */}
+        {respondingAgent && (
+          <div className="flex items-center gap-2 px-4 py-2 text-sm text-primary animate-pulse">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+              <Bot className="h-3 w-3 text-primary" />
+            </div>
+            <span>
+              <span className="font-medium">{respondingAgent.agentName}</span> is thinking...
+            </span>
+          </div>
+        )}
+
+        {/* Connection Status (dev only) */}
+        {process.env.NODE_ENV === 'development' && !isConnected && (
+          <div className="fixed bottom-20 right-4 px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-500 text-xs">
+            Socket disconnected
+          </div>
         )}
       </div>
     </ScrollArea>
