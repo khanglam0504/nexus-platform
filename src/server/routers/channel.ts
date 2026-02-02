@@ -53,6 +53,8 @@ export const channelRouter = router({
         workspaceId: z.string(),
         description: z.string().optional(),
         type: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),
+        sessionName: z.string().optional(),
+        aiEnabled: z.boolean().optional(),
         groupId: z.string().optional(),
         agentIds: z.array(z.string()).optional(),
       })
@@ -80,6 +82,8 @@ export const channelRouter = router({
           name: input.name,
           description: input.description,
           type: input.type,
+          sessionName: input.sessionName,
+          aiEnabled: input.aiEnabled ?? false,
           workspaceId: input.workspaceId,
           groupId: input.groupId,
           position: (maxPos._max.position ?? -1) + 1,
@@ -202,12 +206,14 @@ export const channelRouter = router({
         id: z.string(),
         name: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).optional(),
         description: z.string().optional(),
+        sessionName: z.string().nullish(),
+        aiEnabled: z.boolean().optional(),
         groupId: z.string().nullish(),
         agentIds: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, agentIds, groupId, ...data } = input;
+      const { id, agentIds, groupId, sessionName, ...data } = input;
 
       // Update channel agents if provided
       if (agentIds !== undefined) {
@@ -232,6 +238,7 @@ export const channelRouter = router({
         data: {
           ...data,
           ...(groupId !== undefined ? { groupId } : {}),
+          ...(sessionName !== undefined ? { sessionName } : {}),
         },
         include: {
           channelAgents: {

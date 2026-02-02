@@ -132,15 +132,17 @@ enum WorkspaceRole {
 }
 
 model Channel {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  type        ChannelType   @default(PUBLIC)
-  workspaceId String        @map("workspace_id")
-  groupId     String?       @map("group_id")
-  position    Int           @default(0)
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id             String        @id @default(cuid())
+  name           String
+  description    String?
+  type           ChannelType   @default(PUBLIC)
+  sessionName    String?       @map("session_name") // Custom AI session identifier
+  aiEnabled      Boolean       @default(false) @map("ai_enabled") // Whether AI responds
+  workspaceId    String        @map("workspace_id")
+  groupId        String?       @map("group_id")
+  position       Int           @default(0)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   group          ChannelGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
