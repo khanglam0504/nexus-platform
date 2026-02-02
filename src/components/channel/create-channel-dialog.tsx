@@ -15,8 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Bot, Loader2, Plus, Sparkles, Link2 } from 'lucide-react';
+import { Bot, Loader2, Plus, Link2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +31,6 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [sessionName, setSessionName] = useState('');
-  const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
 
   const utils = trpc.useUtils();
@@ -48,7 +46,6 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
       setName('');
       setDescription('');
       setSessionName('');
-      setAiEnabled(false);
       setSelectedAgentIds([]);
       setOpen(false);
       utils.workspace.get.invalidate({ slug: workspaceSlug });
@@ -64,7 +61,6 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
         workspaceId,
         description: description || undefined,
         sessionName: sessionName || undefined,
-        aiEnabled,
         groupId,
         agentIds: selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
       });
@@ -78,9 +74,6 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
         : [...prev, agentId]
     );
   };
-
-  // Get first selected agent for AI toggle display
-  const primaryAgent = agents.find((a) => selectedAgentIds.includes(a.id));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -145,29 +138,6 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
               Custom session identifier for AI conversations. If empty, uses channel ID.
             </p>
           </div>
-
-          {/* AI Assistant Toggle */}
-          {agents.length > 0 && (
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-primary/10">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">AI Assistant</p>
-                  <p className="text-xs text-muted-foreground">
-                    {primaryAgent
-                      ? `${primaryAgent.name} will respond in this channel`
-                      : 'AI will respond in this channel'}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={aiEnabled}
-                onCheckedChange={setAiEnabled}
-              />
-            </div>
-          )}
 
           {/* Agents Selection */}
           {agents.length > 0 && (
