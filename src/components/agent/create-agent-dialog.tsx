@@ -52,7 +52,7 @@ export function CreateAgentDialog({ workspaceId, onSuccess, trigger }: CreateAge
   const [type, setType] = useState<string>('ASSISTANT');
   const [autonomyLevel, setAutonomyLevel] = useState<string>('SPECIALIST');
   const [avatarUrl, setAvatarUrl] = useState('');
-  
+
   // OpenClaw connection fields
   const [openclawGatewayUrl, setOpenclawGatewayUrl] = useState('');
   const [openclawToken, setOpenclawToken] = useState('');
@@ -84,14 +84,14 @@ export function CreateAgentDialog({ workspaceId, onSuccess, trigger }: CreateAge
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       toast.error('Agent name is required');
       return;
     }
 
     const config: Record<string, unknown> = {};
-    
+
     // Add OpenClaw config if provided
     if (openclawGatewayUrl || openclawToken) {
       config.openclaw = {

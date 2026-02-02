@@ -114,19 +114,7 @@ export function ChannelList({
       >
         <Hash className="h-4 w-4 shrink-0" />
         <span className="truncate">{channel.name}</span>
-        {channel.channelAgents?.length > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="ml-auto flex items-center gap-0.5 text-xs text-muted-foreground shrink-0">
-                <Bot className="h-3 w-3" />
-                {channel.channelAgents.length}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {channel.channelAgents.map((ca) => ca.agent.name).join(', ')}
-            </TooltipContent>
-          </Tooltip>
-        )}
+
       </Link>
       <Button
         variant="ghost"

@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { AvatarDisplay } from './avatar-display';
 import { Bot } from 'lucide-react';
 import { HeartbeatIndicator, type HeartbeatStatus } from './heartbeat-indicator';
 import { AutonomyLevelBadge, type AutonomyLevel } from './autonomy-level-badge';
@@ -38,7 +39,7 @@ export function AgentCard({ agent, className, compact = false, onClick }: AgentC
             onClick={onClick}
           >
             <div className="relative flex-shrink-0">
-              <Bot className="h-4 w-4 text-primary" />
+              <AvatarDisplay name={agent.name} avatarUrl={agent.avatar || (agent.config as any)?.avatar} className="h-6 w-6" />
               <div className="absolute -bottom-0.5 -right-0.5">
                 <HeartbeatIndicator status={agent.heartbeatStatus} size="sm" />
               </div>
@@ -66,8 +67,8 @@ export function AgentCard({ agent, className, compact = false, onClick }: AgentC
         trigger={
           <div className="flex items-start gap-3 w-full">
             <div className="relative flex-shrink-0">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Bot className="h-6 w-6 text-primary" />
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center transition-colors">
+                <AvatarDisplay name={agent.name} avatarUrl={agent.avatar || (agent.config as any)?.avatar} className="h-12 w-12 rounded-xl" />
               </div>
               <div className="absolute -bottom-1 -right-1">
                 <HeartbeatIndicator

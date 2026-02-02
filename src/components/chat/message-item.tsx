@@ -146,7 +146,7 @@ export function MessageItem({
               variant="outline" 
               className="h-7 text-xs"
               onClick={() => approveMessage.mutate({ messageId: message.id })}
-              disabled={approveMessage.isLoading}
+              disabled={approveMessage.isPending}
             >
               Approve Response
             </Button>

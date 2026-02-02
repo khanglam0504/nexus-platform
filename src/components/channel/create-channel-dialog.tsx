@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarDisplay } from '@/components/agent/avatar-display';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Bot, Loader2, Plus, Link2 } from 'lucide-react';
@@ -161,12 +161,11 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
                         checked={selectedAgentIds.includes(agent.id)}
                         onCheckedChange={() => toggleAgent(agent.id)}
                       />
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={agent.avatar || undefined} />
-                        <AvatarFallback>
-                          <Bot className="h-3 w-3" />
-                        </AvatarFallback>
-                      </Avatar>
+                      <AvatarDisplay
+                        name={agent.name}
+                        avatarUrl={agent.avatar || (agent.config as any)?.avatar}
+                        className="h-7 w-7"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{agent.name}</p>
                         <p className="text-xs text-muted-foreground">{agent.type}</p>

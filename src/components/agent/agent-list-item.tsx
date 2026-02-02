@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { AvatarDisplay } from './avatar-display';
 import { HeartbeatIndicator, type HeartbeatStatus } from './heartbeat-indicator';
 import { AutonomyLevelBadge } from './autonomy-level-badge';
 import { trpc } from '@/lib/trpc';
@@ -78,12 +79,11 @@ export function AgentListItem({ agent, workspaceId, onEdit }: AgentListItemProps
       <div className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:border-primary/30 transition-colors">
         {/* Avatar */}
         <div className="relative flex-shrink-0">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={(config?.avatar as string) || agent.avatar || undefined} />
-            <AvatarFallback className="bg-primary/10">
-              <Bot className="h-5 w-5 text-primary" />
-            </AvatarFallback>
-          </Avatar>
+          <AvatarDisplay
+            name={agent.name}
+            avatarUrl={(config?.avatar as string) || agent.avatar}
+            className="h-10 w-10"
+          />
           <div className="absolute -bottom-0.5 -right-0.5">
             <HeartbeatIndicator status={agent.heartbeatStatus} size="sm" />
           </div>

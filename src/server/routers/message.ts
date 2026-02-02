@@ -29,9 +29,6 @@ export const messageRouter = router({
           },
           attachments: true,
           _count: { select: { replies: true } },
-          needsApproval: true,
-          approvedBy: true,
-          approvedAt: true,
         },
       });
 
@@ -56,7 +53,6 @@ export const messageRouter = router({
             include: { user: { select: { id: true, name: true } } },
           },
           attachments: true,
-          needsApproval: true,
         },
       });
 
@@ -70,7 +66,6 @@ export const messageRouter = router({
             include: { user: { select: { id: true, name: true } } },
           },
           attachments: true,
-          needsApproval: true,
         },
       });
 
