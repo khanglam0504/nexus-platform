@@ -31,6 +31,7 @@ interface Props {
     createdAt: Date;
     user: MessageUser | null;
     agent: MessageAgent | null;
+    needsApproval?: boolean;
     reactions: Array<{
       id: string;
       emoji: string;
@@ -58,6 +59,15 @@ export function MessageItem({
   const sender = message.user || message.agent;
   const isAgent = !!message.agent;
   const isOwnMessage = message.user?.id === currentUserId;
+
+  const approveMessage = trpc.agent.approveMessage.useMutation({
+    onSuccess: () => {
+      if (channelId) {
+        utils.message.list.invalidate({ channelId });
+      }
+      utils.message.getThread.invalidate();
+    },
+  });
 
   const addReaction = trpc.message.addReaction.useMutation({
     onSuccess: () => {
@@ -114,9 +124,34 @@ export function MessageItem({
             </span>
           )}
           <span className="text-xs text-muted-foreground">{formatDate(message.createdAt)}</span>
+          {message.needsApproval && (
+            <span className="text-xs bg-yellow-500/20 text-yellow-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
+              Needs Approval
+            </span>
+          )}
         </div>
 
-        <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">{message.content}</p>
+        <p className={cn(
+          "text-sm mt-0.5 whitespace-pre-wrap break-words",
+          message.needsApproval && "text-muted-foreground italic"
+        )}>
+          {message.content}
+        </p>
+
+        {message.needsApproval && (
+          <div className="mt-2 flex gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-xs"
+              onClick={() => approveMessage.mutate({ messageId: message.id })}
+              disabled={approveMessage.isLoading}
+            >
+              Approve Response
+            </Button>
+          </div>
+        )}
 
         {/* Reactions */}
         {Object.keys(groupedReactions).length > 0 && (

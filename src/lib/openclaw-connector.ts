@@ -146,12 +146,27 @@ export async function generateAgentResponse(
   agentType: AgentType,
   userMessage: string,
   conversationHistory: ChatMessage[] = [],
-  config: AgentConfig = {}
+  config: AgentConfig = {},
+  agentContext?: {
+    workingState?: any;
+    longTermMemory?: string | null;
+  }
 ): Promise<string> {
   const systemPrompt = config.customPrompt || AGENT_SYSTEM_PROMPTS[agentType];
 
+  // Enhanced system prompt with context
+  let fullSystemPrompt = systemPrompt;
+  if (agentContext) {
+    if (agentContext.longTermMemory) {
+      fullSystemPrompt += `\n\nLONG-TERM MEMORY:\n${agentContext.longTermMemory}`;
+    }
+    if (agentContext.workingState) {
+      fullSystemPrompt += `\n\nCURRENT WORKING STATE:\n${JSON.stringify(agentContext.workingState, null, 2)}`;
+    }
+  }
+
   const messages: ChatMessage[] = [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: fullSystemPrompt },
     ...conversationHistory,
     { role: 'user', content: userMessage },
   ];

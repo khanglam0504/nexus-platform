@@ -121,6 +121,7 @@ export const agentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const agent = await ctx.prisma.agent.findUnique({
         where: { id: input.agentId },
+        include: { context: true },
       });
 
       if (!agent) {
@@ -177,17 +178,15 @@ export const agentRouter = router({
       });
 
       // Build conversation history for AI context
-      const conversationHistory = recentMessages.slice(0, -1).map(msg => ({
+      const conversationHistory = recentMessages.slice(0, -1).map((msg) => ({
         role: (msg.agentId ? 'assistant' : 'user') as 'user' | 'assistant',
-        content: msg.agentId
-          ? msg.content
-          : `${msg.user?.name || 'User'}: ${msg.content}`,
+        content: msg.agentId ? msg.content : `${msg.user?.name || 'User'}: ${msg.content}`,
       }));
 
       // Get agent config
       const agentConfig = (agent.config as Record<string, unknown>) || {};
 
-      // Generate AI response using OpenClaw connector
+      // Generate AI response using OpenClaw connector, including agent context
       const agentResponseContent = await generateAgentResponse(
         agent.type as AgentType,
         input.message,
@@ -197,8 +196,15 @@ export const agentRouter = router({
           temperature: agentConfig.temperature as number | undefined,
           maxTokens: agentConfig.maxTokens as number | undefined,
           customPrompt: agentConfig.customPrompt as string | undefined,
+        },
+        {
+          workingState: agent.context?.workingState,
+          longTermMemory: agent.context?.longTermMemory,
         }
       );
+
+      // Determine if message needs approval based on autonomy level
+      const needsApproval = agent.autonomyLevel === 'INTERN';
 
       // Create agent response message
       const response = await ctx.prisma.message.create({
@@ -207,9 +213,30 @@ export const agentRouter = router({
           channelId: input.channelId,
           agentId: input.agentId,
           threadId: input.threadId,
+          needsApproval,
         },
         include: {
           agent: { select: { id: true, name: true, avatar: true, type: true } },
+        },
+      });
+
+      // Update agent context (lastAction, workingState)
+      const currentWorkingState = (agent.context?.workingState as Record<string, any>) || {};
+      await ctx.prisma.agentContext.upsert({
+        where: { agentId: agent.id },
+        update: {
+          workingState: {
+            ...currentWorkingState,
+            lastAction: `Responded to: ${input.message.slice(0, 50)}...`,
+            lastResponseAt: new Date().toISOString(),
+          },
+        },
+        create: {
+          agentId: agent.id,
+          workingState: {
+            lastAction: `Responded to: ${input.message.slice(0, 50)}...`,
+            lastResponseAt: new Date().toISOString(),
+          },
         },
       });
 
@@ -223,6 +250,7 @@ export const agentRouter = router({
         threadId: response.threadId,
         createdAt: response.createdAt.toISOString(),
         agent: response.agent || undefined,
+        needsApproval: response.needsApproval,
       });
 
       return response;
@@ -239,6 +267,7 @@ export const agentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const agent = await ctx.prisma.agent.findUnique({
         where: { id: input.agentId },
+        include: { context: true },
       });
 
       if (!agent) {
@@ -247,7 +276,7 @@ export const agentRouter = router({
 
       const agentConfig = (agent.config as Record<string, unknown>) || {};
 
-      // Generate AI response directly
+      // Generate AI response directly with context
       const responseContent = await generateAgentResponse(
         agent.type as AgentType,
         input.message,
@@ -257,8 +286,32 @@ export const agentRouter = router({
           temperature: agentConfig.temperature as number | undefined,
           maxTokens: agentConfig.maxTokens as number | undefined,
           customPrompt: agentConfig.customPrompt as string | undefined,
+        },
+        {
+          workingState: agent.context?.workingState,
+          longTermMemory: agent.context?.longTermMemory,
         }
       );
+
+      // Update agent context (lastAction, workingState)
+      const currentWorkingState = (agent.context?.workingState as Record<string, any>) || {};
+      await ctx.prisma.agentContext.upsert({
+        where: { agentId: agent.id },
+        update: {
+          workingState: {
+            ...currentWorkingState,
+            lastAction: `Quick Chat: ${input.message.slice(0, 50)}...`,
+            lastResponseAt: new Date().toISOString(),
+          },
+        },
+        create: {
+          agentId: agent.id,
+          workingState: {
+            lastAction: `Quick Chat: ${input.message.slice(0, 50)}...`,
+            lastResponseAt: new Date().toISOString(),
+          },
+        },
+      });
 
       return {
         content: responseContent,
@@ -366,5 +419,63 @@ export const agentRouter = router({
         where: { id: input.agentId },
         data: { autonomyLevel: input.autonomyLevel },
       });
+    }),
+
+  // Approve an agent's message (only for LEAD/AUTONOMOUS agents or Admin users)
+  approveMessage: protectedProcedure
+    .input(z.object({ messageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if user has permission to approve (Lead agent or Admin)
+      // For now, any user in the workspace can approve, but we can restrict this
+      const message = await ctx.prisma.message.findUnique({
+        where: { id: input.messageId },
+        include: { agent: true },
+      });
+
+      if (!message) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Message not found' });
+      }
+
+      if (!message.needsApproval) {
+        return message;
+      }
+
+      return ctx.prisma.message.update({
+        where: { id: input.messageId },
+        data: {
+          needsApproval: false,
+          approvedBy: ctx.session.user.id,
+          approvedAt: new Date(),
+        },
+      });
+    }),
+
+  // Utility to check for stale agents and potentially trigger notifications or status updates
+  cleanupStaleAgents: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const agents = await ctx.prisma.agent.findMany({
+        where: { workspaceId: input.workspaceId, isActive: true },
+      });
+
+      const results = {
+        total: agents.length,
+        online: 0,
+        stale: 0,
+        offline: 0,
+      };
+
+      for (const agent of agents) {
+        const status = getHeartbeatStatus(agent.lastHeartbeat, agent.heartbeatInterval);
+        results[status]++;
+
+        // If an agent is offline, we could perform some cleanup or alert
+        if (status === 'offline') {
+          // Optional: mark as inactive if offline for too long
+          // await ctx.prisma.agent.update({ where: { id: agent.id }, data: { isActive: false } });
+        }
+      }
+
+      return results;
     }),
 });

@@ -8,6 +8,7 @@ export interface MessagePayload {
   userId: string | null;
   agentId: string | null;
   threadId: string | null;
+  needsApproval?: boolean;
   createdAt: string;
   user?: { id: string; name: string | null; image: string | null };
   agent?: { id: string; name: string; avatar: string | null; type: string };

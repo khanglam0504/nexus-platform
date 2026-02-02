@@ -31,6 +31,7 @@ interface WorkingState {
   currentTask?: string;
   lastAction?: string;
   lastActionTime?: string;
+  lastResponseAt?: string;
   pendingItems?: string[];
 }
 
@@ -126,10 +127,10 @@ export function AgentWorkingStatePanel({
                 {workingState?.lastAction ? (
                   <div className="space-y-1">
                     <p className="text-sm">{workingState.lastAction}</p>
-                    {workingState.lastActionTime && (
+                    {(workingState.lastActionTime || workingState.lastResponseAt) && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {new Date(workingState.lastActionTime).toLocaleString()}
+                        {new Date(workingState.lastActionTime || workingState.lastResponseAt!).toLocaleString()}
                       </p>
                     )}
                   </div>
