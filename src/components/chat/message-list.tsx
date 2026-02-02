@@ -20,7 +20,7 @@ export function MessageList({
   currentUserId,
   onThreadClick,
 }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   // Use socket for real-time updates instead of polling
   const { isConnected, typingUsers, respondingAgent } = useSocket(channelId);
@@ -36,8 +36,8 @@ export function MessageList({
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [data?.messages]);
 
@@ -73,7 +73,7 @@ export function MessageList({
   const messages = data?.messages || [];
 
   return (
-    <ScrollArea className="flex-1" ref={scrollRef}>
+    <ScrollArea className="flex-1">
       <div className="p-4 space-y-1">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-8">
@@ -206,6 +206,9 @@ export function MessageList({
             Socket disconnected
           </div>
         )}
+
+        {/* Auto-scroll anchor */}
+        <div ref={bottomRef} />
       </div>
     </ScrollArea>
   );
