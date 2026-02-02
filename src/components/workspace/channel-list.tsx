@@ -5,20 +5,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Hash, Plus, ChevronDown, ChevronRight, Settings, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { trpc } from '@/lib/trpc';
 import { AgentCard, CreateAgentDialog } from '@/components/agent';
-import type { Channel, Workspace, Agent, AgentContext } from '@prisma/client';
+import { ChannelSettingsDialog, CreateChannelDialog } from '@/components/channel';
+import type { Channel, Workspace, Agent, AgentContext, ChannelAgent } from '@prisma/client';
 
 type HeartbeatStatus = 'online' | 'stale' | 'offline';
 
@@ -28,9 +20,13 @@ interface AgentWithLifecycle extends AgentWithContext {
   heartbeatStatus: HeartbeatStatus;
 }
 
+type ChannelWithAgents = Channel & {
+  channelAgents: (ChannelAgent & { agent: Agent })[];
+};
+
 interface Props {
   workspace: Workspace;
-  channels: Channel[];
+  channels: ChannelWithAgents[];
   agents: AgentWithLifecycle[];
   onChannelSelect?: () => void;
 }
@@ -40,26 +36,7 @@ export function ChannelList({ workspace, channels, agents, onChannelSelect }: Pr
   const currentChannelId = params.channelId as string;
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [agentsExpanded, setAgentsExpanded] = useState(true);
-  const [newChannelName, setNewChannelName] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const utils = trpc.useUtils();
-  const createChannel = trpc.channel.create.useMutation({
-    onSuccess: () => {
-      setNewChannelName('');
-      setDialogOpen(false);
-      utils.workspace.get.invalidate({ slug: workspace.slug });
-    },
-  });
-
-  const handleCreateChannel = () => {
-    if (newChannelName.trim()) {
-      createChannel.mutate({
-        name: newChannelName.toLowerCase().replace(/\s+/g, '-'),
-        workspaceId: workspace.id,
-      });
-    }
-  };
+  const [settingsChannel, setSettingsChannel] = useState<ChannelWithAgents | null>(null);
 
   return (
     <div className="w-64 bg-card border-r border-border flex flex-col">
@@ -92,51 +69,49 @@ export function ChannelList({ workspace, channels, agents, onChannelSelect }: Pr
             {channelsExpanded && (
               <div className="mt-1 space-y-0.5">
                 {channels.map((channel) => (
-                  <Link
-                    key={channel.id}
-                    href={`/workspace/${workspace.slug}/${channel.id}`}
-                    className={cn(
-                      'channel-item',
-                      currentChannelId === channel.id && 'active'
-                    )}
-                    onClick={() => onChannelSelect?.()}
-                  >
-                    <Hash className="h-4 w-4" />
-                    <span className="truncate">{channel.name}</span>
-                  </Link>
+                  <div key={channel.id} className="group relative flex items-center">
+                    <Link
+                      href={`/workspace/${workspace.slug}/${channel.id}`}
+                      className={cn(
+                        'channel-item flex-1',
+                        currentChannelId === channel.id && 'active'
+                      )}
+                      onClick={() => onChannelSelect?.()}
+                    >
+                      <Hash className="h-4 w-4" />
+                      <span className="truncate">{channel.name}</span>
+                      {channel.channelAgents?.length > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-auto flex items-center gap-0.5 text-xs text-muted-foreground">
+                              <Bot className="h-3 w-3" />
+                              {channel.channelAgents.length}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {channel.channelAgents.map((ca) => ca.agent.name).join(', ')}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSettingsChannel(channel);
+                      }}
+                    >
+                      <Settings className="h-3 w-3" />
+                    </Button>
+                  </div>
                 ))}
 
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                  <DialogTrigger asChild>
-                    <button className="channel-item w-full text-left">
-                      <Plus className="h-4 w-4" />
-                      <span>Add channel</span>
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create Channel</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="channel-name">Channel name</Label>
-                        <Input
-                          id="channel-name"
-                          placeholder="e.g. marketing"
-                          value={newChannelName}
-                          onChange={(e) => setNewChannelName(e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        onClick={handleCreateChannel}
-                        disabled={!newChannelName.trim() || createChannel.isPending}
-                        className="w-full"
-                      >
-                        Create Channel
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <CreateChannelDialog
+                  workspaceId={workspace.id}
+                  workspaceSlug={workspace.slug}
+                />
               </div>
             )}
           </div>
@@ -181,6 +156,16 @@ export function ChannelList({ workspace, channels, agents, onChannelSelect }: Pr
           </div>
         </div>
       </ScrollArea>
+
+      {/* Channel Settings Dialog */}
+      {settingsChannel && (
+        <ChannelSettingsDialog
+          channel={settingsChannel}
+          workspaceId={workspace.id}
+          open={!!settingsChannel}
+          onOpenChange={(open) => !open && setSettingsChannel(null)}
+        />
+      )}
     </div>
   );
 }
