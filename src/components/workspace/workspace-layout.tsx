@@ -7,7 +7,7 @@ import { ChannelList } from './channel-list';
 import { MobileHeader } from './mobile-header';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-media-query';
-import type { Channel, WorkspaceMember, User, Workspace, AgentContext, AutonomyLevel, Agent, Prisma } from '@prisma/client';
+import type { Channel, ChannelGroup, ChannelAgent, WorkspaceMember, User, Workspace, AgentContext, Agent } from '@prisma/client';
 
 type HeartbeatStatus = 'online' | 'stale' | 'offline';
 
@@ -17,8 +17,17 @@ interface AgentWithLifecycle extends AgentWithContext {
   heartbeatStatus: HeartbeatStatus;
 }
 
+type ChannelWithAgents = Channel & {
+  channelAgents: (ChannelAgent & { agent: Agent })[];
+};
+
+type ChannelGroupWithChannels = ChannelGroup & {
+  channels: ChannelWithAgents[];
+};
+
 interface WorkspaceWithRelations extends Workspace {
-  channels: Channel[];
+  channels: ChannelWithAgents[];
+  channelGroups: ChannelGroupWithChannels[];
   members: (WorkspaceMember & { user: Pick<User, 'id' | 'name' | 'image'> })[];
   agents: AgentWithLifecycle[];
 }
@@ -37,7 +46,12 @@ export function WorkspaceLayout({ workspace, currentUser, children }: Props) {
 
   // Extract current channel name from pathname
   const channelId = pathname.split('/').pop();
-  const currentChannel = workspace.channels.find((c) => c.id === channelId);
+  // Find channel in ungrouped or in groups
+  const allChannels = [
+    ...workspace.channels,
+    ...workspace.channelGroups.flatMap((g) => g.channels),
+  ];
+  const currentChannel = allChannels.find((c) => c.id === channelId);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -61,7 +75,8 @@ export function WorkspaceLayout({ workspace, currentUser, children }: Props) {
               <Sidebar workspace={workspace} currentUser={currentUser} />
               <ChannelList
                 workspace={workspace}
-                channels={workspace.channels}
+                channelGroups={workspace.channelGroups}
+                ungroupedChannels={workspace.channels}
                 agents={workspace.agents}
                 onChannelSelect={() => setSidebarOpen(false)}
               />
@@ -79,7 +94,8 @@ export function WorkspaceLayout({ workspace, currentUser, children }: Props) {
           {/* Channel List */}
           <ChannelList
             workspace={workspace}
-            channels={workspace.channels}
+            channelGroups={workspace.channelGroups}
+            ungroupedChannels={workspace.channels}
             agents={workspace.agents}
           />
 

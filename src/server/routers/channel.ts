@@ -4,15 +4,19 @@ import { TRPCError } from '@trpc/server';
 
 export const channelRouter = router({
   list: protectedProcedure
-    .input(z.object({ workspaceId: z.string() }))
+    .input(z.object({ workspaceId: z.string(), ungroupedOnly: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       return ctx.prisma.channel.findMany({
-        where: { workspaceId: input.workspaceId },
-        orderBy: { name: 'asc' },
+        where: {
+          workspaceId: input.workspaceId,
+          ...(input.ungroupedOnly ? { groupId: null } : {}),
+        },
+        orderBy: { position: 'asc' },
         include: {
           channelAgents: {
             include: { agent: true },
           },
+          group: true,
         },
       });
     }),
@@ -49,6 +53,7 @@ export const channelRouter = router({
         workspaceId: z.string(),
         description: z.string().optional(),
         type: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),
+        groupId: z.string().optional(),
         agentIds: z.array(z.string()).optional(),
       })
     )
@@ -61,12 +66,23 @@ export const channelRouter = router({
         throw new TRPCError({ code: 'CONFLICT', message: 'Channel name already exists' });
       }
 
+      // Get max position in group or workspace
+      const maxPos = await ctx.prisma.channel.aggregate({
+        where: {
+          workspaceId: input.workspaceId,
+          groupId: input.groupId ?? null,
+        },
+        _max: { position: true },
+      });
+
       return ctx.prisma.channel.create({
         data: {
           name: input.name,
           description: input.description,
           type: input.type,
           workspaceId: input.workspaceId,
+          groupId: input.groupId,
+          position: (maxPos._max.position ?? -1) + 1,
           channelAgents: input.agentIds?.length
             ? {
                 create: input.agentIds.map((agentId) => ({ agentId })),
@@ -77,6 +93,7 @@ export const channelRouter = router({
           channelAgents: {
             include: { agent: true },
           },
+          group: true,
         },
       });
     }),
@@ -185,11 +202,12 @@ export const channelRouter = router({
         id: z.string(),
         name: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).optional(),
         description: z.string().optional(),
+        groupId: z.string().nullish(),
         agentIds: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, agentIds, ...data } = input;
+      const { id, agentIds, groupId, ...data } = input;
 
       // Update channel agents if provided
       if (agentIds !== undefined) {
@@ -211,12 +229,31 @@ export const channelRouter = router({
 
       return ctx.prisma.channel.update({
         where: { id },
-        data,
+        data: {
+          ...data,
+          ...(groupId !== undefined ? { groupId } : {}),
+        },
         include: {
           channelAgents: {
             include: { agent: true },
           },
+          group: true,
         },
+      });
+    }),
+
+  // Move channel to a group
+  moveToGroup: protectedProcedure
+    .input(
+      z.object({
+        channelId: z.string(),
+        groupId: z.string().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.channel.update({
+        where: { id: input.channelId },
+        data: { groupId: input.groupId },
       });
     }),
 });

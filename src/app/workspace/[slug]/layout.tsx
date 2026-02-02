@@ -33,8 +33,22 @@ export default async function WorkspaceSlugLayout({ params, children }: Props) {
   const workspace = await prisma.workspace.findUnique({
     where: { slug: params.slug },
     include: {
+      channelGroups: {
+        orderBy: { position: 'asc' },
+        include: {
+          channels: {
+            orderBy: { position: 'asc' },
+            include: {
+              channelAgents: {
+                include: { agent: true },
+              },
+            },
+          },
+        },
+      },
       channels: {
-        orderBy: { name: 'asc' },
+        where: { groupId: null },
+        orderBy: { position: 'asc' },
         include: {
           channelAgents: {
             include: { agent: true },

@@ -22,10 +22,11 @@ import { cn } from '@/lib/utils';
 interface Props {
   workspaceId: string;
   workspaceSlug: string;
+  groupId?: string;
   trigger?: React.ReactNode;
 }
 
-export function CreateChannelDialog({ workspaceId, workspaceSlug, trigger }: Props) {
+export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -47,6 +48,7 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, trigger }: Pro
       setOpen(false);
       utils.workspace.get.invalidate({ slug: workspaceSlug });
       utils.channel.list.invalidate({ workspaceId });
+      utils.channelGroup.list.invalidate({ workspaceId });
     },
   });
 
@@ -56,6 +58,7 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, trigger }: Pro
         name: name.toLowerCase().replace(/\s+/g, '-'),
         workspaceId,
         description: description || undefined,
+        groupId,
         agentIds: selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
       });
     }

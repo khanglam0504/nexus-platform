@@ -84,11 +84,31 @@ model Workspace {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  members  WorkspaceMember[]
-  channels Channel[]
-  agents   Agent[]
+  members       WorkspaceMember[]
+  channels      Channel[]
+  channelGroups ChannelGroup[]
+  agents        Agent[]
 
   @@map("workspaces")
+}
+
+model ChannelGroup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  icon        String?  // Icon name (e.g., "message-circle", "code", "chart")
+  color       String?  // Hex color (e.g., "#3B82F6")
+  position    Int      @default(0)
+  workspaceId String   @map("workspace_id")
+  isCollapsed Boolean  @default(false) @map("is_collapsed")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channels  Channel[]
+
+  @@unique([workspaceId, name])
+  @@map("channel_groups")
 }
 
 model WorkspaceMember {
@@ -112,15 +132,18 @@ enum WorkspaceRole {
 }
 
 model Channel {
-  id          String      @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   description String?
-  type        ChannelType @default(PUBLIC)
-  workspaceId String      @map("workspace_id")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  type        ChannelType   @default(PUBLIC)
+  workspaceId String        @map("workspace_id")
+  groupId     String?       @map("group_id")
+  position    Int           @default(0)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  group          ChannelGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
   messages       Message[]
   channelAgents  ChannelAgent[]
   debateSessions DebateSession[]
