@@ -3,7 +3,7 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { emitNewMessage } from '@/lib/socket-emitter';
 import { TRPCError } from '@trpc/server';
 import { generateAgentResponse } from '@/lib/openclaw-connector';
-import type { AgentType } from '@prisma/client';
+type AgentType = 'ASSISTANT' | 'CODER' | 'ANALYST' | 'RESEARCHER';
 
 export const messageRouter = router({
   list: protectedProcedure
@@ -159,7 +159,7 @@ export const messageRouter = router({
           // Respond with first active agent in channel
           for (const ca of channelAgents) {
             const agent = ca.agent;
-            const agentConfig = (agent.config as Record<string, unknown>) || {};
+            const agentConfig = agent.config ? JSON.parse(agent.config) as Record<string, unknown> : {};
             const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
 
             // Only respond if agent has OpenClaw connection configured
@@ -265,7 +265,7 @@ export const messageRouter = router({
       const messages = await ctx.prisma.message.findMany({
         where: {
           channelId: input.channelId,
-          content: { contains: input.query, mode: 'insensitive' },
+          content: { contains: input.query },
         },
         take: input.limit + 1,
         cursor: input.cursor ? { id: input.cursor } : undefined,

@@ -88,7 +88,7 @@ export function AgentWorkingStatePanel({
                 <p className="text-sm text-muted-foreground">{agent.type}</p>
               </div>
             </div>
-            <AutonomyLevelBadge level={agent.autonomyLevel} size="sm" />
+            <AutonomyLevelBadge level={agent.autonomyLevel as AutonomyLevel} size="sm" />
           </div>
         </SheetHeader>
 

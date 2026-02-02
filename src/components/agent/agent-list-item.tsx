@@ -22,11 +22,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AvatarDisplay } from './avatar-display';
 import { HeartbeatIndicator, type HeartbeatStatus } from './heartbeat-indicator';
-import { AutonomyLevelBadge } from './autonomy-level-badge';
+import { AutonomyLevelBadge, type AutonomyLevel } from './autonomy-level-badge';
 import { trpc } from '@/lib/trpc';
 import { Bot, MoreVertical, Pencil, Trash2, Power, PowerOff } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Agent, AgentContext, AutonomyLevel } from '@prisma/client';
+import type { Agent, AgentContext } from '@prisma/client';
 
 type AgentWithContext = Agent & { context: AgentContext | null };
 
@@ -163,7 +163,7 @@ export function AgentListItem({ agent, workspaceId, onEdit }: AgentListItemProps
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Agent?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove "{agent.name}"? This will deactivate the agent
+              Are you sure you want to remove &quot;{agent.name}&quot;? This will deactivate the agent
               and remove it from all channels.
             </AlertDialogDescription>
           </AlertDialogHeader>

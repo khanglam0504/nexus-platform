@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,9 +24,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Bot, Loader2, Settings } from 'lucide-react';
+import { Bot, Loader2, Settings, Trash2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import type { Channel, Agent, ChannelAgent } from '@prisma/client';
 
 type ChannelWithAgents = Channel & {
@@ -26,18 +38,21 @@ type ChannelWithAgents = Channel & {
 interface Props {
   channel: ChannelWithAgents;
   workspaceId: string;
+  workspaceSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ChannelSettingsDialog({ channel, workspaceId, open, onOpenChange }: Props) {
+export function ChannelSettingsDialog({ channel, workspaceId, workspaceSlug, open, onOpenChange }: Props) {
   const [name, setName] = useState(channel.name);
   const [description, setDescription] = useState(channel.description || '');
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(
     channel.channelAgents.map((ca) => ca.agentId)
   );
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const utils = trpc.useUtils();
+  const router = useRouter();
 
   // Fetch all agents in workspace
   const { data: agents = [] } = trpc.agent.list.useQuery({ workspaceId });
@@ -46,7 +61,30 @@ export function ChannelSettingsDialog({ channel, workspaceId, open, onOpenChange
     onSuccess: () => {
       utils.workspace.get.invalidate();
       utils.channel.list.invalidate({ workspaceId });
+      toast.success('Channel updated successfully');
       onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update channel');
+    },
+  });
+
+  const deleteChannel = trpc.channel.delete.useMutation({
+    onSuccess: () => {
+      utils.workspace.get.invalidate();
+      utils.channel.list.invalidate({ workspaceId });
+      toast.success(`Channel "${channel.name}" deleted successfully`);
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+      // Redirect to workspace home
+      router.push(`/workspace/${workspaceSlug}`);
+    },
+    onError: (error) => {
+      if (error.message.includes('FORBIDDEN')) {
+        toast.error('Only workspace owners and admins can delete channels');
+      } else {
+        toast.error(error.message || 'Failed to delete channel');
+      }
     },
   });
 
@@ -72,6 +110,10 @@ export function ChannelSettingsDialog({ channel, workspaceId, open, onOpenChange
         ? prev.filter((id) => id !== agentId)
         : [...prev, agentId]
     );
+  };
+
+  const handleDelete = () => {
+    deleteChannel.mutate({ id: channel.id });
   };
 
   return (
@@ -156,16 +198,50 @@ export function ChannelSettingsDialog({ channel, workspaceId, open, onOpenChange
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Hủy
+        <div className="flex justify-between gap-2">
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={deleteChannel.isPending || updateChannel.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Xóa
           </Button>
-          <Button onClick={handleSave} disabled={updateChannel.isPending}>
-            {updateChannel.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Lưu
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSave} disabled={updateChannel.isPending || deleteChannel.isPending}>
+              {updateChannel.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Lưu
+            </Button>
+          </div>
         </div>
       </DialogContent>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa channel?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa channel &quot;{channel.name}&quot;? Hành động này không thể hoàn tác
+              và sẽ xóa tất cả tin nhắn trong channel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteChannel.isPending}
+            >
+              {deleteChannel.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Xóa channel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

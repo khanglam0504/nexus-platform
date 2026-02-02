@@ -45,7 +45,7 @@ export function AgentCard({ agent, className, compact = false, onClick }: AgentC
               </div>
             </div>
             <span className="truncate flex-1 text-sm">{agent.name}</span>
-            <AutonomyLevelBadge level={agent.autonomyLevel} size="sm" showLabel={false} />
+            <AutonomyLevelBadge level={agent.autonomyLevel as AutonomyLevel} size="sm" showLabel={false} />
           </div>
         }
       />
@@ -82,7 +82,7 @@ export function AgentCard({ agent, className, compact = false, onClick }: AgentC
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-medium truncate">{agent.name}</h3>
-                <AutonomyLevelBadge level={agent.autonomyLevel} size="sm" />
+                <AutonomyLevelBadge level={agent.autonomyLevel as AutonomyLevel} size="sm" />
               </div>
               <p className="text-xs text-muted-foreground mb-1">{agent.type}</p>
               {agent.description && (

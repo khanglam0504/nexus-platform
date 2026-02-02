@@ -19,7 +19,7 @@ import {
 import { cn, formatDate } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
 import { getSocket } from '@/lib/socket';
-import type { DebateStatus } from '@prisma/client';
+type DebateStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 interface DebateTurn {
   id: string;
@@ -134,7 +134,7 @@ export function DebateView({ sessionId, channelId, onClose }: Props) {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[session.status];
+  const statusConfig = STATUS_CONFIG[session.status as DebateStatus];
   const StatusIcon = statusConfig.icon;
   const totalTurns = session.maxTurns * session.agents.length;
   const progress = (session.currentTurn / totalTurns) * 100;

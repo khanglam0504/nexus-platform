@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -22,14 +21,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { trpc } from '@/lib/trpc';
-import { Loader2, Plus, Bot } from 'lucide-react';
+import { Loader2, Save, Bot } from 'lucide-react';
 import { Identicon } from '@/components/ui/identicon';
 import { toast } from 'sonner';
+import type { Agent } from '@prisma/client';
 
-interface CreateAgentDialogProps {
+interface EditAgentDialogProps {
+  agent: Agent | null;
   workspaceId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  trigger?: React.ReactNode;
 }
 
 const AGENT_TYPES = [
@@ -46,8 +48,7 @@ const AUTONOMY_LEVELS = [
   { value: 'AUTONOMOUS', label: 'Autonomous', desc: 'Full autonomy' },
 ] as const;
 
-export function CreateAgentDialog({ workspaceId, onSuccess, trigger }: CreateAgentDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditAgentDialog({ agent, workspaceId, open, onOpenChange, onSuccess }: EditAgentDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<string>('ASSISTANT');
@@ -59,30 +60,39 @@ export function CreateAgentDialog({ workspaceId, onSuccess, trigger }: CreateAge
 
   const utils = trpc.useUtils();
 
-  const createAgent = trpc.agent.create.useMutation({
+  // Pre-fill form when agent changes
+  useEffect(() => {
+    if (agent) {
+      setName(agent.name);
+      setDescription(agent.description || '');
+      setType(agent.type);
+      setAutonomyLevel(agent.autonomyLevel);
+
+      // Parse config to extract OpenClaw settings
+      const config = agent.config ? JSON.parse(agent.config) as Record<string, unknown> : {};
+      const openclawConfig = config.openclaw as Record<string, unknown> | undefined;
+
+      setOpenclawGatewayUrl((openclawConfig?.gatewayUrl as string) || '');
+      setOpenclawToken((openclawConfig?.token as string) || '');
+    }
+  }, [agent]);
+
+  const updateAgent = trpc.agent.update.useMutation({
     onSuccess: () => {
       utils.agent.list.invalidate({ workspaceId });
-      toast.success(`Agent "${name}" created successfully!`);
-      resetForm();
-      setOpen(false);
+      toast.success(`Agent "${name}" updated successfully!`);
+      onOpenChange(false);
       onSuccess?.();
     },
     onError: (error: { message?: string }) => {
-      toast.error(error.message || 'Failed to create agent');
+      toast.error(error.message || 'Failed to update agent');
     },
   });
 
-  const resetForm = () => {
-    setName('');
-    setDescription('');
-    setType('ASSISTANT');
-    setAutonomyLevel('SPECIALIST');
-    setOpenclawGatewayUrl('');
-    setOpenclawToken('');
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!agent) return;
 
     if (!name.trim()) {
       toast.error('Agent name is required');
@@ -99,34 +109,28 @@ export function CreateAgentDialog({ workspaceId, onSuccess, trigger }: CreateAge
       };
     }
 
-    createAgent.mutate({
+    updateAgent.mutate({
+      agentId: agent.id,
       name: name.trim(),
       description: description.trim() || undefined,
       type: type as 'ASSISTANT' | 'CODER' | 'ANALYST' | 'RESEARCHER',
       autonomyLevel: autonomyLevel as 'INTERN' | 'SPECIALIST' | 'LEAD' | 'AUTONOMOUS',
-      workspaceId,
       config: Object.keys(config).length > 0 ? config : undefined,
     });
   };
 
+  if (!agent) return null;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Agent
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
-            Add AI Agent
+            Edit AI Agent
           </DialogTitle>
           <DialogDescription>
-            Add a new AI agent to your workspace. Connect an OpenClaw bot or create a standalone agent.
+            Update agent configuration and OpenClaw connection settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -244,19 +248,19 @@ export function CreateAgentDialog({ workspaceId, onSuccess, trigger }: CreateAge
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createAgent.isPending}>
-              {createAgent.isPending ? (
+            <Button type="submit" disabled={updateAgent.isPending}>
+              {updateAgent.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  Updating...
                 </>
               ) : (
                 <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Agent
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
                 </>
               )}
             </Button>

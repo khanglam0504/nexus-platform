@@ -2,7 +2,7 @@
 // Integrates with OpenClaw API for AI agent responses
 // Supports both cloud API and local gateway connections
 
-import type { AgentType } from '@prisma/client';
+type AgentType = 'ASSISTANT' | 'CODER' | 'ANALYST' | 'RESEARCHER';
 
 // OpenClaw Cloud API configuration (fallback)
 const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL || 'https://api.openclaw.ai/v1';

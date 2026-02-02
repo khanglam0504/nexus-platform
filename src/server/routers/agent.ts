@@ -3,7 +3,8 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { generateAgentResponse } from '@/lib/openclaw-connector';
 import { emitNewMessage, emitAgentResponding } from '@/lib/socket-emitter';
-import type { AgentType, AutonomyLevel } from '@prisma/client';
+type AgentType = 'ASSISTANT' | 'CODER' | 'ANALYST' | 'RESEARCHER';
+type AutonomyLevel = 'INTERN' | 'SPECIALIST' | 'LEAD' | 'AUTONOMOUS';
 
 // Helper to calculate heartbeat status
 function getHeartbeatStatus(
@@ -75,7 +76,7 @@ export const agentRouter = router({
           description: input.description,
           type: input.type,
           autonomyLevel: input.autonomyLevel,
-          config: input.config,
+          config: input.config ? JSON.stringify(input.config) : null,
           workspaceId: input.workspaceId,
         },
       });
@@ -101,11 +102,14 @@ export const agentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { agentId, ...updateData } = input;
+      const { agentId, config, ...updateData } = input;
 
       return ctx.prisma.agent.update({
         where: { id: agentId },
-        data: updateData,
+        data: {
+          ...updateData,
+          ...(config !== undefined ? { config: JSON.stringify(config) } : {}),
+        },
       });
     }),
 
@@ -183,8 +187,8 @@ export const agentRouter = router({
         content: msg.agentId ? msg.content : `${msg.user?.name || 'User'}: ${msg.content}`,
       }));
 
-      // Get agent config
-      const agentConfig = (agent.config as Record<string, unknown>) || {};
+      // Get agent config (stored as JSON string)
+      const agentConfig = agent.config ? JSON.parse(agent.config) as Record<string, unknown> : {};
       const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
 
       // Generate AI response using OpenClaw connector, including agent context
@@ -225,23 +229,17 @@ export const agentRouter = router({
       });
 
       // Update agent context (lastAction, workingState)
-      const currentWorkingState = (agent.context?.workingState as Record<string, any>) || {};
+      const workingStateStr = agent.context?.workingState;
+      const currentWorkingState = typeof workingStateStr === 'string' ? JSON.parse(workingStateStr) as Record<string, any> : (workingStateStr as Record<string, any> | null) || {};
+      const newWorkingState = JSON.stringify({
+        ...currentWorkingState,
+        lastAction: `Responded to: ${input.message.slice(0, 50)}...`,
+        lastResponseAt: new Date().toISOString(),
+      });
       await ctx.prisma.agentContext.upsert({
         where: { agentId: agent.id },
-        update: {
-          workingState: {
-            ...currentWorkingState,
-            lastAction: `Responded to: ${input.message.slice(0, 50)}...`,
-            lastResponseAt: new Date().toISOString(),
-          },
-        },
-        create: {
-          agentId: agent.id,
-          workingState: {
-            lastAction: `Responded to: ${input.message.slice(0, 50)}...`,
-            lastResponseAt: new Date().toISOString(),
-          },
-        },
+        update: { workingState: newWorkingState },
+        create: { agentId: agent.id, workingState: newWorkingState },
       });
 
       // Emit agent response via socket
@@ -278,7 +276,7 @@ export const agentRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Agent not found' });
       }
 
-      const agentConfig = (agent.config as Record<string, unknown>) || {};
+      const agentConfig = agent.config ? JSON.parse(agent.config) as Record<string, unknown> : {};
       const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
 
       // Generate AI response directly with context
@@ -301,23 +299,17 @@ export const agentRouter = router({
       );
 
       // Update agent context (lastAction, workingState)
-      const currentWorkingState = (agent.context?.workingState as Record<string, any>) || {};
+      const workingStateStr = agent.context?.workingState;
+      const currentWorkingState = typeof workingStateStr === 'string' ? JSON.parse(workingStateStr) as Record<string, any> : (workingStateStr as Record<string, any> | null) || {};
+      const quickChatWorkingState = JSON.stringify({
+        ...currentWorkingState,
+        lastAction: `Quick Chat: ${input.message.slice(0, 50)}...`,
+        lastResponseAt: new Date().toISOString(),
+      });
       await ctx.prisma.agentContext.upsert({
         where: { agentId: agent.id },
-        update: {
-          workingState: {
-            ...currentWorkingState,
-            lastAction: `Quick Chat: ${input.message.slice(0, 50)}...`,
-            lastResponseAt: new Date().toISOString(),
-          },
-        },
-        create: {
-          agentId: agent.id,
-          workingState: {
-            lastAction: `Quick Chat: ${input.message.slice(0, 50)}...`,
-            lastResponseAt: new Date().toISOString(),
-          },
-        },
+        update: { workingState: quickChatWorkingState },
+        create: { agentId: agent.id, workingState: quickChatWorkingState },
       });
 
       return {
@@ -388,7 +380,11 @@ export const agentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { agentId, ...updateData } = input;
+      const { agentId, workingState, ...rest } = input;
+      const updateData = {
+        ...rest,
+        ...(workingState !== undefined ? { workingState: JSON.stringify(workingState) } : {}),
+      };
 
       return ctx.prisma.agentContext.upsert({
         where: { agentId },

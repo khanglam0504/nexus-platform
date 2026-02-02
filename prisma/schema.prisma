@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // Auth Models
@@ -14,12 +14,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String  @map("provider_account_id")
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String? 
+  access_token      String? 
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String? 
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -56,7 +56,7 @@ model User {
   password      String?
   emailVerified DateTime? @map("email_verified")
   image         String?
-  role          UserRole  @default(MEMBER)
+  role          String @default("MEMBER")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -71,10 +71,7 @@ model User {
   @@map("users")
 }
 
-enum UserRole {
-  ADMIN
-  MEMBER
-}
+
 
 model Workspace {
   id        String   @id @default(cuid())
@@ -115,7 +112,7 @@ model WorkspaceMember {
   id          String          @id @default(cuid())
   workspaceId String          @map("workspace_id")
   userId      String          @map("user_id")
-  role        WorkspaceRole   @default(MEMBER)
+  role        String @default("MEMBER")
   createdAt   DateTime        @default(now()) @map("created_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -125,17 +122,13 @@ model WorkspaceMember {
   @@map("workspace_members")
 }
 
-enum WorkspaceRole {
-  OWNER
-  ADMIN
-  MEMBER
-}
+
 
 model Channel {
   id             String        @id @default(cuid())
   name           String
   description    String?
-  type           ChannelType   @default(PUBLIC)
+  type           String @default("PUBLIC")
   sessionName    String?       @map("session_name") // Custom AI session identifier
   aiEnabled      Boolean       @default(false) @map("ai_enabled") // Whether AI responds
   workspaceId    String        @map("workspace_id")
@@ -154,15 +147,11 @@ model Channel {
   @@map("channels")
 }
 
-enum ChannelType {
-  PUBLIC
-  PRIVATE
-  DM
-}
+
 
 model Message {
   id            String    @id @default(cuid())
-  content       String    @db.Text
+  content       String    
   userId        String?   @map("user_id")
   agentId       String?   @map("agent_id")
   channelId     String    @map("channel_id")
@@ -222,16 +211,16 @@ model Agent {
   id                String        @id @default(cuid())
   name              String
   description       String?
-  type              AgentType     @default(ASSISTANT)
+  type              String @default("ASSISTANT")
   avatar            String?
-  config            Json?
+  config            String?
   workspaceId       String        @map("workspace_id")
   isActive          Boolean       @default(true) @map("is_active")
   // Heartbeat/Scheduler fields
   lastHeartbeat     DateTime?     @map("last_heartbeat")
   heartbeatInterval Int           @default(30) @map("heartbeat_interval") // seconds
   // Autonomy Level
-  autonomyLevel     AutonomyLevel @default(SPECIALIST) @map("autonomy_level")
+  autonomyLevel     String @default("SPECIALIST") @map("autonomy_level")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
@@ -244,19 +233,9 @@ model Agent {
   @@map("agents")
 }
 
-enum AgentType {
-  ASSISTANT
-  CODER
-  ANALYST
-  RESEARCHER
-}
 
-enum AutonomyLevel {
-  INTERN     // Needs approval for everything
-  SPECIALIST // Can execute within defined scope
-  LEAD       // Can approve other agents' work
-  AUTONOMOUS // Full autonomy
-}
+
+
 
 // Multi-Agent Debate Models
 
@@ -279,12 +258,12 @@ model ChannelAgent {
 model DebateSession {
   id          String        @id @default(cuid())
   title       String
-  task        String        @db.Text
+  task        String        
   channelId   String        @map("channel_id")
-  status      DebateStatus  @default(PENDING)
+  status      String @default("PENDING")
   maxTurns    Int           @default(5) @map("max_turns")
   currentTurn Int           @default(0) @map("current_turn")
-  summary     String?       @db.Text
+  summary     String?       
   createdBy   String        @map("created_by")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -299,12 +278,7 @@ model DebateSession {
   @@map("debate_sessions")
 }
 
-enum DebateStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
+
 
 // Agents participating in a debate
 model DebateAgent {
@@ -328,8 +302,8 @@ model DebateTurn {
   debateSessionId String   @map("debate_session_id")
   debateAgentId   String   @map("debate_agent_id")
   turnNumber      Int      @map("turn_number")
-  content         String   @db.Text
-  reasoning       String?  @db.Text
+  content         String   
+  reasoning       String?  
   createdAt       DateTime @default(now()) @map("created_at")
 
   debateSession DebateSession @relation(fields: [debateSessionId], references: [id], onDelete: Cascade)
@@ -344,11 +318,11 @@ model AgentContext {
   id             String   @id @default(cuid())
   agentId        String   @unique @map("agent_id")
   // Current working state (JSON: currentTask, lastAction, pendingItems)
-  workingState   Json?    @map("working_state")
+  workingState   String?    @map("working_state")
   // Daily notes for the agent
-  dailyNotes     String?  @db.Text @map("daily_notes")
+  dailyNotes     String?   @map("daily_notes")
   // Long-term memory/context
-  longTermMemory String?  @db.Text @map("long_term_memory")
+  longTermMemory String?   @map("long_term_memory")
   // Loading state flag
   isLoading      Boolean  @default(false) @map("is_loading")
   createdAt      DateTime @default(now()) @map("created_at")

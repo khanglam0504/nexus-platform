@@ -3,7 +3,8 @@ import { router, protectedProcedure } from '@/server/trpc';
 import { TRPCError } from '@trpc/server';
 import { generateAgentResponse } from '@/lib/openclaw-connector';
 import { emitDebateTurn, emitDebateStatusChange } from '@/lib/socket-emitter';
-import type { AgentType, DebateStatus } from '@prisma/client';
+type AgentType = 'ASSISTANT' | 'CODER' | 'ANALYST' | 'RESEARCHER';
+type DebateStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 // Debate orchestration system prompts
 const DEBATE_ROLE_PROMPTS: Record<string, string> = {

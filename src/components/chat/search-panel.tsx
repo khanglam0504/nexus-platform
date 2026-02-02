@@ -59,23 +59,26 @@ export function SearchPanel({ channelId, onClose, onSelectMessage }: Props) {
           </div>
         )}
 
-        {data?.messages?.map((msg) => (
-          <button
-            key={msg.id}
-            onClick={() => onSelectMessage(msg.id)}
-            className="w-full px-4 py-3 text-left hover:bg-secondary/50 border-b transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={msg.user?.image || msg.agent?.avatar || undefined} />
-                <AvatarFallback>{getInitials(msg.user?.name || msg.agent?.name)}</AvatarFallback>
-              </Avatar>
-              <span className="font-medium text-sm">{msg.user?.name || msg.agent?.name}</span>
-              <span className="text-xs text-muted-foreground">{formatDate(msg.createdAt)}</span>
-            </div>
-            <p className="text-sm text-muted-foreground line-clamp-2">{msg.content}</p>
-          </button>
-        ))}
+        {data?.messages?.map((msg) => {
+          const m = msg as typeof msg & { user?: { name?: string; image?: string }; agent?: { name?: string; avatar?: string } };
+          return (
+            <button
+              key={m.id}
+              onClick={() => onSelectMessage(m.id)}
+              className="w-full px-4 py-3 text-left hover:bg-secondary/50 border-b transition-colors"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={m.user?.image || m.agent?.avatar || undefined} />
+                  <AvatarFallback>{getInitials(m.user?.name || m.agent?.name)}</AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-sm">{m.user?.name || m.agent?.name}</span>
+                <span className="text-xs text-muted-foreground">{formatDate(m.createdAt)}</span>
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2">{m.content}</p>
+            </button>
+          );
+        })}
       </ScrollArea>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { Avatar as UIAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bot } from 'lucide-react';
+import { Identicon } from '@/components/ui/identicon';
 
 interface AvatarDisplayProps {
     name: string;
@@ -13,8 +13,8 @@ export function AvatarDisplay({ name, avatarUrl, className }: AvatarDisplayProps
     return (
         <UIAvatar className={className}>
             <AvatarImage src={avatarUrl || undefined} alt={name} />
-            <AvatarFallback>
-                <Bot className="h-1/2 w-1/2" />
+            <AvatarFallback className="p-0">
+                <Identicon name={name} size={40} />
             </AvatarFallback>
         </UIAvatar>
     );

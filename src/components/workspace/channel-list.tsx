@@ -261,6 +261,7 @@ export function ChannelList({
         <ChannelSettingsDialog
           channel={settingsChannel}
           workspaceId={workspace.id}
+          workspaceSlug={workspace.slug}
           open={!!settingsChannel}
           onOpenChange={(open) => !open && setSettingsChannel(null)}
         />

@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { CreateAgentDialog } from './create-agent-dialog';
+import { EditAgentDialog } from './edit-agent-dialog';
 import { AgentListItem } from './agent-list-item';
 import { Loader2, Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Agent, AgentContext, AutonomyLevel } from '@prisma/client';
+import type { Agent, AgentContext } from '@prisma/client';
 
 type AgentWithContext = Agent & { context: AgentContext | null };
 
@@ -22,6 +23,8 @@ interface AgentSettingsProps {
 
 export function AgentSettings({ workspaceId, currentRole }: AgentSettingsProps) {
   const [activeTab, setActiveTab] = useState<'active' | 'all'>('active');
+  const [editAgent, setEditAgent] = useState<AgentWithLifecycle | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: agents, isLoading } = trpc.agent.list.useQuery({ workspaceId });
 
@@ -38,8 +41,8 @@ export function AgentSettings({ workspaceId, currentRole }: AgentSettingsProps) 
   const offlineAgents = displayedAgents.filter((a: AgentWithLifecycle) => a.heartbeatStatus === 'offline');
 
   const handleEditAgent = (agent: AgentWithLifecycle) => {
-    // TODO: Implement edit modal
-    console.log('Edit agent:', agent);
+    setEditAgent(agent);
+    setEditDialogOpen(true);
   };
 
   return (
@@ -175,12 +178,20 @@ export function AgentSettings({ workspaceId, currentRole }: AgentSettingsProps) 
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
           <h4 className="font-medium text-sm mb-2">💡 Connecting OpenClaw Bots</h4>
           <p className="text-sm text-muted-foreground">
-            To connect an OpenClaw bot, you'll need the Gateway URL and API Token from your 
-            OpenClaw configuration. The bot will receive messages from channels it's added to 
+            To connect an OpenClaw bot, you&apos;ll need the Gateway URL and API Token from your
+            OpenClaw configuration. The bot will receive messages from channels it&apos;s added to
             and can respond in real-time.
           </p>
         </div>
       </div>
+
+      {/* Edit Agent Dialog */}
+      <EditAgentDialog
+        agent={editAgent}
+        workspaceId={workspaceId}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
     </div>
   );
 }

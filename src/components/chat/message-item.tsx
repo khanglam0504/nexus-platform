@@ -5,7 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MessageSquare, SmilePlus, Bot } from 'lucide-react';
+import { MessageSquare, SmilePlus } from 'lucide-react';
+import { Identicon } from '@/components/ui/identicon';
 import { formatDate, getInitials } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { EmojiPicker } from './emoji-picker';
@@ -108,8 +109,8 @@ export function MessageItem({
     >
       <Avatar className="h-9 w-9 shrink-0">
         <AvatarImage src={message.user?.image || message.agent?.avatar || undefined} />
-        <AvatarFallback className={isAgent ? 'bg-primary text-primary-foreground' : ''}>
-          {isAgent ? <Bot className="h-4 w-4" /> : getInitials(sender?.name)}
+        <AvatarFallback className={isAgent ? 'p-0' : ''}>
+          {isAgent ? <Identicon name={message.agent?.name || 'Bot'} size={36} /> : getInitials(sender?.name)}
         </AvatarFallback>
       </Avatar>
 
