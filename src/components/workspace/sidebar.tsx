@@ -13,9 +13,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Settings, LogOut, Home } from 'lucide-react';
+import { Plus, Settings, LogOut, Home, Moon, Sun, Monitor } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import type { Workspace } from '@prisma/client';
+import { useTheme } from 'next-themes';
 
 interface Props {
   workspace: Workspace;
@@ -24,6 +25,15 @@ interface Props {
 
 export function Sidebar({ workspace, currentUser }: Props) {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+
+  const cycleTheme = () => {
+    if (theme === 'dark') setTheme('light');
+    else if (theme === 'light') setTheme('system');
+    else setTheme('dark');
+  };
+
+  const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
 
   return (
     <div className="w-16 bg-sidebar flex flex-col items-center py-3 gap-2">
@@ -65,6 +75,23 @@ export function Sidebar({ workspace, currentUser }: Props) {
       </Tooltip>
 
       <div className="flex-1" />
+
+      {/* Theme Toggle */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-10 h-10 rounded-xl"
+            onClick={cycleTheme}
+          >
+            <ThemeIcon className="h-5 w-5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          Theme: {theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'}
+        </TooltipContent>
+      </Tooltip>
 
       {/* User Menu */}
       <DropdownMenu>
