@@ -210,31 +210,9 @@ export function ChannelList({
             );
           })}
 
-          {/* Ungrouped Channels */}
-          {ungroupedChannels.length > 0 && (
-            <div className="mb-4">
-              <div className="px-2 py-1 mb-1">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Channels
-                </span>
-              </div>
-              <div className="space-y-0.5">
-                {ungroupedChannels.map(renderChannel)}
-              </div>
-            </div>
-          )}
 
-          {/* Add Channel (ungrouped) */}
-          <CreateChannelDialog
-            workspaceId={workspace.id}
-            workspaceSlug={workspace.slug}
-            trigger={
-              <button className="channel-item w-full text-left">
-                <Plus className="h-4 w-4" />
-                <span>Add channel</span>
-              </button>
-            }
-          />
+
+
 
           {/* Agents Section */}
           <div className="mt-4 pt-4 border-t border-border">

@@ -8,51 +8,57 @@ const config: Config = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
     extend: {
       colors: {
-        // Nexus Platform Dark Theme
-        background: '#1a1a2e',
-        sidebar: '#16213e',
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         primary: {
-          DEFAULT: '#10b981',
-          foreground: '#ffffff',
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
         },
-        foreground: '#f3f4f6',
         secondary: {
-          DEFAULT: '#1f2937',
-          foreground: '#e5e7eb',
-        },
-        muted: {
-          DEFAULT: '#374151',
-          foreground: '#9ca3af',
-        },
-        accent: {
-          DEFAULT: '#10b981',
-          foreground: '#ffffff',
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
         },
         destructive: {
-          DEFAULT: '#ef4444',
-          foreground: '#ffffff',
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
         },
-        border: '#374151',
-        input: '#374151',
-        ring: '#10b981',
-        card: {
-          DEFAULT: '#1f2937',
-          foreground: '#f9fafb',
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
         },
         popover: {
-          DEFAULT: '#1f2937',
-          foreground: '#f9fafb',
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
         },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        sidebar: 'hsl(var(--background))',
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
-      borderRadius: {
-        lg: '0.75rem',
-        md: '0.5rem',
-        sm: '0.25rem',
       },
       keyframes: {
         pulse: {
@@ -68,10 +74,20 @@ const config: Config = {
           '0%': { backgroundPosition: '200% 0' },
           '100%': { backgroundPosition: '-200% 0' },
         },
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
       },
       animation: {
         'heartbeat-pulse': 'heartbeat-pulse 2s ease-in-out infinite',
         'context-loading': 'context-loading 1.5s ease-in-out infinite',
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
       },
     },
   },

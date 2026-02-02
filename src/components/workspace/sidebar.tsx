@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -26,6 +27,12 @@ interface Props {
 export function Sidebar({ workspace, currentUser }: Props) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering theme-dependent content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const cycleTheme = () => {
     if (theme === 'dark') setTheme('light');
@@ -33,7 +40,8 @@ export function Sidebar({ workspace, currentUser }: Props) {
     else setTheme('dark');
   };
 
-  const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
+  // Use Monitor as default during SSR, then show actual theme icon after hydration
+  const ThemeIcon = !mounted ? Monitor : theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
 
   return (
     <div className="w-16 bg-sidebar flex flex-col items-center py-3 gap-2">
@@ -89,7 +97,7 @@ export function Sidebar({ workspace, currentUser }: Props) {
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right">
-          Theme: {theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'}
+          Theme: {!mounted ? 'System' : theme === 'dark' ? 'Dark' : theme === 'light' ? 'Light' : 'System'}
         </TooltipContent>
       </Tooltip>
 

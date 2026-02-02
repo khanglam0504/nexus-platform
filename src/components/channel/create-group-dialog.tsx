@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,7 @@ interface Props {
 
 export function CreateGroupDialog({ workspaceId, trigger }: Props) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('folder-open');
@@ -79,6 +81,7 @@ export function CreateGroupDialog({ workspaceId, trigger }: Props) {
       setSelectedColor(COLORS[0]);
       setOpen(false);
       utils.channelGroup.list.invalidate({ workspaceId });
+      router.refresh();
     },
   });
 
