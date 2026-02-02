@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '@/server/trpc';
 import { emitNewMessage } from '@/lib/socket-emitter';
 import { TRPCError } from '@trpc/server';
+import { generateAgentResponse } from '@/lib/openclaw-connector';
+import type { AgentType } from '@prisma/client';
 
 export const messageRouter = router({
   list: protectedProcedure
@@ -120,6 +122,97 @@ export const messageRouter = router({
         createdAt: message.createdAt.toISOString(),
         user: message.user || undefined,
       });
+
+      // Auto-respond: Check if channel has agents and trigger response
+      // Run async without blocking the response
+      (async () => {
+        try {
+          const channelAgents = await ctx.prisma.channelAgent.findMany({
+            where: { channelId: input.channelId, isActive: true },
+            include: {
+              agent: {
+                include: { context: true },
+              },
+            },
+          });
+
+          if (channelAgents.length === 0) return;
+
+          // Get recent messages for context
+          const recentMessages = await ctx.prisma.message.findMany({
+            where: { channelId: input.channelId, threadId: input.threadId || null },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: { select: { name: true } },
+              agent: { select: { name: true } },
+            },
+          });
+
+          const conversationHistory = recentMessages.reverse().slice(0, -1).map((msg) => ({
+            role: (msg.agentId ? 'assistant' : 'user') as 'user' | 'assistant',
+            content: msg.agentId
+              ? msg.content
+              : `${msg.user?.name || 'User'}: ${msg.content}`,
+          }));
+
+          // Respond with first active agent in channel
+          for (const ca of channelAgents) {
+            const agent = ca.agent;
+            const agentConfig = (agent.config as Record<string, unknown>) || {};
+            const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
+
+            // Only respond if agent has OpenClaw connection configured
+            if (!openclawConfig?.gatewayUrl || !openclawConfig?.token) continue;
+
+            const responseContent = await generateAgentResponse(
+              agent.type as AgentType,
+              input.content,
+              conversationHistory,
+              {
+                model: agentConfig.model as string | undefined,
+                customPrompt: agentConfig.customPrompt as string | undefined,
+              },
+              {
+                workingState: agent.context?.workingState,
+                longTermMemory: agent.context?.longTermMemory,
+              },
+              openclawConfig,
+              `nexus-${input.channelId}`
+            );
+
+            // Create agent response message
+            const agentMessage = await ctx.prisma.message.create({
+              data: {
+                content: responseContent,
+                channelId: input.channelId,
+                agentId: agent.id,
+                threadId: input.threadId,
+              },
+              include: {
+                agent: { select: { id: true, name: true, avatar: true, type: true } },
+              },
+            });
+
+            // Emit agent message
+            emitNewMessage(input.channelId, {
+              id: agentMessage.id,
+              content: agentMessage.content,
+              channelId: agentMessage.channelId,
+              userId: agentMessage.userId,
+              agentId: agentMessage.agentId,
+              threadId: agentMessage.threadId,
+              createdAt: agentMessage.createdAt.toISOString(),
+              agent: agentMessage.agent || undefined,
+            });
+
+            // Only respond with one agent per message
+            break;
+          }
+        } catch (error) {
+          console.error('Auto-respond error:', error);
+        }
+      })();
 
       return message;
     }),
