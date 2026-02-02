@@ -58,7 +58,7 @@ export interface OpenClawGatewayConfig {
   token?: string;
 }
 
-// Call local OpenClaw Gateway
+// Call local OpenClaw Gateway via OpenAI-compatible endpoint
 async function callLocalGateway(
   gatewayUrl: string,
   token: string,
@@ -69,16 +69,20 @@ async function callLocalGateway(
     // Normalize gateway URL
     const baseUrl = gatewayUrl.replace(/\/$/, '');
     
-    const response = await fetch(`${baseUrl}/api/sessions/send`, {
+    // Use OpenAI-compatible /v1/chat/completions endpoint
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'x-openclaw-session-key': sessionKey || 'nexus-chat',
       },
       body: JSON.stringify({
-        message,
-        sessionKey: sessionKey || 'nexus-chat',
-        timeoutSeconds: 120,
+        model: 'openclaw',
+        messages: [
+          { role: 'user', content: message }
+        ],
+        user: sessionKey || 'nexus-chat', // For session continuity
       }),
     });
 
@@ -90,10 +94,17 @@ async function callLocalGateway(
 
     const data = await response.json();
     
-    // Gateway returns { reply: string, ... }
+    // OpenAI format: { choices: [{ message: { content } }] }
+    const content = data.choices?.[0]?.message?.content || 'No response from agent.';
+    
     return {
-      content: data.reply || data.message || data.content || 'No response from agent.',
-      model: 'openclaw-gateway',
+      content,
+      model: data.model || 'openclaw-gateway',
+      usage: data.usage ? {
+        promptTokens: data.usage.prompt_tokens,
+        completionTokens: data.usage.completion_tokens,
+        totalTokens: data.usage.total_tokens,
+      } : undefined,
     };
   } catch (error) {
     console.error('OpenClaw Gateway request failed:', error);
