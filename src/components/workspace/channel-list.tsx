@@ -32,6 +32,7 @@ import {
   ChannelSettingsDialog,
   CreateChannelDialog,
   CreateGroupDialog,
+  EditGroupDialog,
 } from '@/components/channel';
 import type { Channel, ChannelGroup, Workspace, Agent, AgentContext, ChannelAgent } from '@prisma/client';
 
@@ -89,6 +90,7 @@ export function ChannelList({
   );
   const [agentsExpanded, setAgentsExpanded] = useState(true);
   const [settingsChannel, setSettingsChannel] = useState<ChannelWithAgents | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ChannelGroupWithChannels | null>(null);
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
@@ -159,21 +161,34 @@ export function ChannelList({
 
             return (
               <div key={group.id} className="mb-2">
-                <button
-                  className="flex items-center gap-1.5 px-2 py-1.5 w-full text-sm font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"
-                  onClick={() => toggleGroup(group.id)}
-                >
-                  {isExpanded ? (
-                    <ChevronDown className="h-3 w-3 shrink-0" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3 shrink-0" />
-                  )}
-                  <GroupIcon
-                    className="h-4 w-4 shrink-0"
-                    style={{ color: group.color || undefined }}
-                  />
-                  <span className="truncate">{group.name}</span>
-                </button>
+                <div className="group/header flex items-center mb-1 relative">
+                  <button
+                    className="flex items-center gap-1.5 px-2 py-1.5 w-full text-sm font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleGroup(group.id)}
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3 shrink-0" />
+                    )}
+                    <GroupIcon
+                      className="h-4 w-4 shrink-0"
+                      style={{ color: group.color || undefined }}
+                    />
+                    <span className="truncate">{group.name}</span>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover/header:opacity-100 transition-opacity absolute right-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setEditingGroup(group);
+                    }}
+                  >
+                    <Settings className="h-3 w-3" />
+                  </Button>
+                </div>
 
                 {isExpanded && (
                   <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border pl-2">
@@ -248,6 +263,16 @@ export function ChannelList({
           workspaceId={workspace.id}
           open={!!settingsChannel}
           onOpenChange={(open) => !open && setSettingsChannel(null)}
+        />
+      )}
+
+      {/* Edit Group Dialog */}
+      {editingGroup && (
+        <EditGroupDialog
+          group={editingGroup}
+          workspaceId={workspace.id}
+          open={!!editingGroup}
+          onOpenChange={(open) => !open && setEditingGroup(null)}
         />
       )}
     </div>

@@ -20,9 +20,14 @@ export default function AuthError({
             <p className="text-muted-foreground text-sm max-w-md">
                 {error.message || 'We ran into an issue verifying your session.'}
             </p>
-            <Button onClick={() => reset()} variant="secondary">
-                Try again
-            </Button>
+            <div className="flex gap-2">
+                <Button onClick={() => reset()} variant="secondary">
+                    Try again
+                </Button>
+                <Button onClick={() => window.location.href = '/login'}>
+                    Back to Login
+                </Button>
+            </div>
         </div>
     );
 }

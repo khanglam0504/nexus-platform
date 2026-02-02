@@ -72,27 +72,61 @@ export const workspaceRouter = router({
   create: protectedProcedure
     .input(z.object({ name: z.string().min(2).max(50) }))
     .mutation(async ({ ctx, input }) => {
-      const slug = generateSlug(input.name);
+      try {
+        const slug = generateSlug(input.name);
 
-      const existing = await ctx.prisma.workspace.findUnique({ where: { slug } });
-      if (existing) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Workspace slug already exists' });
+        const existing = await ctx.prisma.workspace.findUnique({ where: { slug } });
+        if (existing) {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Workspace slug already exists' });
+        }
+
+        // Debug: Ensure user exists
+        const user = await ctx.prisma.user.findUnique({ where: { id: ctx.session.user.id } });
+        if (!user) {
+          console.error("User not found in DB but has session:", ctx.session.user.id);
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User not found. Please sign out and login again.' });
+        }
+
+        const workspace = await ctx.prisma.$transaction(async (tx) => {
+          // 1. Create Workspace
+          const w = await tx.workspace.create({
+            data: {
+              name: input.name,
+              slug,
+              members: {
+                create: { userId: ctx.session.user.id, role: 'OWNER' },
+              },
+            },
+          });
+
+          // 2. Create "General" Group
+          const group = await tx.channelGroup.create({
+            data: {
+              name: 'General',
+              workspaceId: w.id,
+              icon: 'hash', // Standard icon
+              color: '#3B82F6', // Blue default
+            },
+          });
+
+          // 3. Create "welcome" Channel inside the Group
+          await tx.channel.create({
+            data: {
+              name: 'welcome',
+              type: 'PUBLIC',
+              workspaceId: w.id,
+              groupId: group.id,
+            },
+          });
+
+          return w;
+        });
+
+        return workspace;
+      } catch (error) {
+        console.error("Error creating workspace:", error);
+        throw error;
       }
-
-      const workspace = await ctx.prisma.workspace.create({
-        data: {
-          name: input.name,
-          slug,
-          members: {
-            create: { userId: ctx.session.user.id, role: 'OWNER' },
-          },
-          channels: {
-            create: { name: 'general', type: 'PUBLIC' },
-          },
-        },
-      });
-
-      return workspace;
     }),
 
   invite: protectedProcedure

@@ -40,11 +40,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
+        // Debug logging
+        console.log("Attempting login for:", email);
         const user = await prisma.user.findUnique({ where: { email } });
 
-        if (!user || !user.password) return null;
+        if (!user) {
+          console.log("User not found in DB");
+          return null;
+        }
+
+        if (!user.password) {
+          console.log("User has no password (OAuth account?)");
+          return null;
+        }
 
         const isValid = await compare(password, user.password);
+        console.log("Password valid:", isValid);
+
         if (!isValid) return null;
 
         return {

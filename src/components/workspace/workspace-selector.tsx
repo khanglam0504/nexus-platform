@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, LogOut } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
 interface WorkspaceItem {
@@ -36,6 +37,15 @@ export function WorkspaceSelector({ workspaces }: Props) {
       setDialogOpen(false);
       router.push(`/workspace/${workspace.slug}`);
     },
+    onError: (error) => {
+      if (error.data?.code === 'UNAUTHORIZED') {
+        // Session invalid (e.g. DB reset), force re-login
+        router.push('/login');
+      } else {
+        // Fallback alert for now, ideally use toast
+        alert(error.message);
+      }
+    },
   });
 
   const handleCreate = () => {
@@ -45,7 +55,13 @@ export function WorkspaceSelector({ workspaces }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
+      <div className="absolute top-4 right-4">
+        <Button variant="ghost" onClick={() => signOut({ callbackUrl: '/login' })}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
+      </div>
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-primary">Nexus Platform</h1>

@@ -25,7 +25,8 @@ export default function WorkspaceError({
                 <Link href="/">
                     <Button variant="outline">Back to Home</Button>
                 </Link>
-                <Button onClick={() => reset()}>Try again</Button>
+                <Button onClick={() => reset()} variant="outline">Try again</Button>
+                <Button onClick={() => window.location.href = '/login'}>Back to Login</Button>
             </div>
         </div>
     );

@@ -23,7 +23,8 @@ export default function Error({
                 <Button onClick={() => window.location.reload()} variant="outline">
                     Reload Page
                 </Button>
-                <Button onClick={() => reset()}>Try again</Button>
+                <Button onClick={() => reset()} variant="outline">Try again</Button>
+                <Button onClick={() => window.location.href = '/login'}>Back to Login</Button>
             </div>
         </div>
     );

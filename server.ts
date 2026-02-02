@@ -178,7 +178,7 @@ app.prepare().then(() => {
     });
   });
 
-  httpServer.listen(port, () => {
+  httpServer.listen(port, '0.0.0.0', () => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> Socket.io ready on path /api/socketio`);
   });
