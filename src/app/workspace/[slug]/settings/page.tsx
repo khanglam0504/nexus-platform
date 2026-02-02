@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { TeamSettings } from '@/components/workspace/team-settings';
+import { AgentSettings } from '@/components/agent';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -48,6 +49,13 @@ export default async function SettingsPage({ params }: Props) {
           workspaceName={workspace.name}
           currentRole={currentRole}
         />
+
+        <div className="mt-10 pt-10 border-t">
+          <AgentSettings
+            workspaceId={workspace.id}
+            currentRole={currentRole}
+          />
+        </div>
       </div>
     </div>
   );
