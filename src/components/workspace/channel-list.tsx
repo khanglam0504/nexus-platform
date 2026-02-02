@@ -14,10 +14,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Hash, Plus, ChevronDown, ChevronRight, Settings } from 'lucide-react';
+import { Hash, Plus, ChevronDown, ChevronRight, Settings, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc';
-import { AgentCard } from '@/components/agent';
+import { AgentCard, CreateAgentDialog } from '@/components/agent';
 import type { Channel, Workspace, Agent, AgentContext } from '@prisma/client';
 
 type HeartbeatStatus = 'online' | 'stale' | 'offline';
@@ -166,6 +166,16 @@ export function ChannelList({ workspace, channels, agents, onChannelSelect }: Pr
                     No agents configured
                   </p>
                 )}
+
+                <CreateAgentDialog
+                  workspaceId={workspace.id}
+                  trigger={
+                    <button className="channel-item w-full text-left">
+                      <Plus className="h-4 w-4" />
+                      <span>Add agent</span>
+                    </button>
+                  }
+                />
               </div>
             )}
           </div>
