@@ -185,8 +185,10 @@ export const agentRouter = router({
 
       // Get agent config
       const agentConfig = (agent.config as Record<string, unknown>) || {};
+      const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
 
       // Generate AI response using OpenClaw connector, including agent context
+      // Pass gateway config if available for local OpenClaw connection
       const agentResponseContent = await generateAgentResponse(
         agent.type as AgentType,
         input.message,
@@ -200,7 +202,9 @@ export const agentRouter = router({
         {
           workingState: agent.context?.workingState,
           longTermMemory: agent.context?.longTermMemory,
-        }
+        },
+        openclawConfig,
+        `nexus-${input.channelId}` // Session key based on channel
       );
 
       // Determine if message needs approval based on autonomy level
@@ -275,6 +279,7 @@ export const agentRouter = router({
       }
 
       const agentConfig = (agent.config as Record<string, unknown>) || {};
+      const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
 
       // Generate AI response directly with context
       const responseContent = await generateAgentResponse(
@@ -290,7 +295,9 @@ export const agentRouter = router({
         {
           workingState: agent.context?.workingState,
           longTermMemory: agent.context?.longTermMemory,
-        }
+        },
+        openclawConfig,
+        `nexus-agent-${input.agentId}`
       );
 
       // Update agent context (lastAction, workingState)

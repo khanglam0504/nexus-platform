@@ -1,9 +1,10 @@
 // OpenClaw AI Connector Service
 // Integrates with OpenClaw API for AI agent responses
+// Supports both cloud API and local gateway connections
 
 import type { AgentType } from '@prisma/client';
 
-// OpenClaw API configuration
+// OpenClaw Cloud API configuration (fallback)
 const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL || 'https://api.openclaw.ai/v1';
 const OPENCLAW_API_KEY = process.env.OPENCLAW_API_KEY;
 
@@ -51,7 +52,56 @@ export interface AgentConfig {
   customPrompt?: string;
 }
 
-// OpenClaw API client
+// OpenClaw Gateway config (from agent.config.openclaw)
+export interface OpenClawGatewayConfig {
+  gatewayUrl?: string;
+  token?: string;
+}
+
+// Call local OpenClaw Gateway
+async function callLocalGateway(
+  gatewayUrl: string,
+  token: string,
+  message: string,
+  sessionKey?: string
+): Promise<OpenClawResponse> {
+  try {
+    // Normalize gateway URL
+    const baseUrl = gatewayUrl.replace(/\/$/, '');
+    
+    const response = await fetch(`${baseUrl}/api/sessions/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        message,
+        sessionKey: sessionKey || 'nexus-chat',
+        timeoutSeconds: 120,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenClaw Gateway error: ${response.status} - ${errorText}`);
+      throw new Error(`Gateway error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Gateway returns { reply: string, ... }
+    return {
+      content: data.reply || data.message || data.content || 'No response from agent.',
+      model: 'openclaw-gateway',
+    };
+  } catch (error) {
+    console.error('OpenClaw Gateway request failed:', error);
+    throw error;
+  }
+}
+
+// OpenClaw Cloud API client
 class OpenClawClient {
   private apiKey: string | undefined;
   private baseUrl: string;
@@ -107,17 +157,13 @@ class OpenClawClient {
     }
   }
 
-  private fallbackResponse(messages: ChatMessage[]): OpenClawResponse {
-    // Generate contextual fallback when API is unavailable
+  fallbackResponse(messages: ChatMessage[]): OpenClawResponse {
     const lastUserMessage = messages.filter(m => m.role === 'user').pop();
     const systemPrompt = messages.find(m => m.role === 'system');
 
     let responseContent = 'I apologize, but I am currently unable to process your request. ';
 
     if (lastUserMessage) {
-      const query = lastUserMessage.content.toLowerCase();
-
-      // Provide helpful fallback based on agent type from system prompt
       if (systemPrompt?.content.includes('software developer')) {
         responseContent += `For your code-related question about "${lastUserMessage.content.slice(0, 50)}...", I recommend checking the official documentation or Stack Overflow while I'm temporarily unavailable.`;
       } else if (systemPrompt?.content.includes('data analyst')) {
@@ -125,7 +171,7 @@ class OpenClawClient {
       } else if (systemPrompt?.content.includes('research')) {
         responseContent += `For your research question, I suggest checking academic databases like Google Scholar, or official documentation for technical topics.`;
       } else {
-        responseContent += `Please try again in a moment, or reach out to a team member for assistance with your question about "${lastUserMessage.content.slice(0, 50)}..."`;
+        responseContent += `Please try again in a moment, or reach out to a team member for assistance.`;
       }
     } else {
       responseContent += 'Please try again in a moment.';
@@ -142,6 +188,7 @@ class OpenClawClient {
 const openclawClient = new OpenClawClient();
 
 // Generate agent response with context
+// Now supports local gateway via gatewayConfig
 export async function generateAgentResponse(
   agentType: AgentType,
   userMessage: string,
@@ -150,11 +197,45 @@ export async function generateAgentResponse(
   agentContext?: {
     workingState?: any;
     longTermMemory?: string | null;
-  }
+  },
+  gatewayConfig?: OpenClawGatewayConfig,
+  sessionKey?: string
 ): Promise<string> {
+  
+  // If gateway config is provided, use local gateway
+  if (gatewayConfig?.gatewayUrl && gatewayConfig?.token) {
+    try {
+      console.log(`Calling OpenClaw Gateway at ${gatewayConfig.gatewayUrl}`);
+      
+      // Build context message for gateway
+      let contextMessage = userMessage;
+      
+      // Add conversation history context if available
+      if (conversationHistory.length > 0) {
+        const historyText = conversationHistory
+          .slice(-5) // Last 5 messages for context
+          .map(m => `${m.role}: ${m.content}`)
+          .join('\n');
+        contextMessage = `[Previous conversation]\n${historyText}\n\n[New message]\n${userMessage}`;
+      }
+      
+      const response = await callLocalGateway(
+        gatewayConfig.gatewayUrl,
+        gatewayConfig.token,
+        contextMessage,
+        sessionKey
+      );
+      
+      return response.content;
+    } catch (error) {
+      console.error('Local gateway failed, falling back to cloud API:', error);
+      // Fall through to cloud API
+    }
+  }
+
+  // Fallback to cloud API or fallback response
   const systemPrompt = config.customPrompt || AGENT_SYSTEM_PROMPTS[agentType];
 
-  // Enhanced system prompt with context
   let fullSystemPrompt = systemPrompt;
   if (agentContext) {
     if (agentContext.longTermMemory) {
@@ -175,7 +256,7 @@ export async function generateAgentResponse(
   return response.content;
 }
 
-// Check if OpenClaw is configured
+// Check if OpenClaw is configured (cloud API)
 export function isOpenClawConfigured(): boolean {
   return !!OPENCLAW_API_KEY;
 }
