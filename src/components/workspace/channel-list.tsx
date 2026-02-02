@@ -185,9 +185,6 @@ export function ChannelList({
                     style={{ color: group.color || undefined }}
                   />
                   <span className="truncate">{group.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {group.channels.length}
-                  </span>
                 </button>
 
                 {isExpanded && (
