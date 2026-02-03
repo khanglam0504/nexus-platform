@@ -138,6 +138,20 @@ export const messageRouter = router({
 
           if (channelAgents.length === 0) return;
 
+          // Parse @mentions in message content (e.g., @Robert, @Jason)
+          const mentionRegex = /@(\w+)/g;
+          const mentions = [...input.content.matchAll(mentionRegex)].map(m => m[1].toLowerCase());
+          
+          // Filter agents to only those mentioned, or all if no mentions
+          let agentsToRespond = channelAgents;
+          if (mentions.length > 0) {
+            agentsToRespond = channelAgents.filter(ca => 
+              mentions.includes(ca.agent.name.toLowerCase())
+            );
+            // If mentioned agents not found in channel, don't respond
+            if (agentsToRespond.length === 0) return;
+          }
+
           // Get recent messages for context
           const recentMessages = await ctx.prisma.message.findMany({
             where: { channelId: input.channelId, threadId: input.threadId || null },
@@ -156,8 +170,8 @@ export const messageRouter = router({
               : `${msg.user?.name || 'User'}: ${msg.content}`,
           }));
 
-          // Respond with first active agent in channel
-          for (const ca of channelAgents) {
+          // Respond with mentioned agents (or first agent if no mentions)
+          for (const ca of agentsToRespond) {
             const agent = ca.agent;
             const agentConfig = agent.config ? JSON.parse(agent.config) as Record<string, unknown> : {};
             const openclawConfig = agentConfig.openclaw as { gatewayUrl?: string; token?: string } | undefined;
@@ -206,8 +220,9 @@ export const messageRouter = router({
               agent: agentMessage.agent || undefined,
             });
 
-            // Only respond with one agent per message
-            break;
+            // If specific agents were mentioned, respond with all of them
+            // If no mentions, only respond with first agent
+            if (mentions.length === 0) break;
           }
         } catch (error) {
           console.error('Auto-respond error:', error);

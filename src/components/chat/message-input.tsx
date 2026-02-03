@@ -2,20 +2,13 @@
 
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+// Dropdown removed - using @mentions in message text instead
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Send, Bot, AtSign, Paperclip, Smile, Loader2, X, Sparkles } from 'lucide-react';
+import { Send, Bot, Paperclip, Smile, Loader2, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
 import { FilePreview } from './file-preview';
@@ -196,52 +189,6 @@ export function MessageInput({ channelId, threadId, agents, placeholder }: Props
       >
         {/* Left Actions */}
         <div className="flex gap-0.5 pb-1">
-          {agents.length > 0 && (
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        'h-8 w-8 shrink-0 rounded-lg',
-                        selectedAgent && 'text-primary bg-primary/10'
-                      )}
-                    >
-                      <AtSign className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="top">Mention AI agent</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  AI Agents
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {agents.map((agent) => (
-                  <DropdownMenuItem
-                    key={agent.id}
-                    onClick={() => setSelectedAgent(agent)}
-                    className="gap-3"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{agent.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {agent.type || 'AI Assistant'}
-                      </p>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
