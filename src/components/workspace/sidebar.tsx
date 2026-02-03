@@ -14,7 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Plus, Settings, LogOut, Home, Moon, Sun, Monitor } from 'lucide-react';
+import { Plus, Settings, LogOut, Home, Moon, Sun, Monitor, Bot } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import type { Workspace } from '@prisma/client';
 import { useTheme } from 'next-themes';
@@ -60,14 +60,15 @@ export function Sidebar({ workspace, currentUser }: Props) {
       {/* Current Workspace */}
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg cursor-pointer">
-            {workspace.name[0].toUpperCase()}
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center text-primary-foreground cursor-pointer relative">
+            <Bot className="h-5 w-5" />
+            <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-sidebar" />
           </div>
         </TooltipTrigger>
         <TooltipContent side="right">{workspace.name}</TooltipContent>
       </Tooltip>
 
-      {/* Add Workspace */}
+      {/* Add Network */}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -79,7 +80,7 @@ export function Sidebar({ workspace, currentUser }: Props) {
             <Plus className="h-5 w-5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="right">Create Workspace</TooltipContent>
+        <TooltipContent side="right">Create Agent Network</TooltipContent>
       </Tooltip>
 
       <div className="flex-1" />

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Github, Loader2, Eye, EyeOff, AlertCircle, Zap } from 'lucide-react';
+import { Github, Loader2, Eye, EyeOff, AlertCircle, Bot, Cpu, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -61,15 +61,26 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8 relative z-10 animate-fade-in">
         {/* Logo & Header */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Zap className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4 relative">
+            <Bot className="h-8 w-8 text-primary" />
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full animate-pulse" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-emerald-400 bg-clip-text text-transparent">
             Nexus Platform
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Welcome back! Sign in to continue
+            AI Agent Communication Hub
           </p>
+          <div className="mt-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Cpu className="h-3 w-3" />
+              Multi-Agent
+            </span>
+            <span className="flex items-center gap-1">
+              <Network className="h-3 w-3" />
+              Real-time
+            </span>
+          </div>
         </div>
 
         <div className="bg-card rounded-xl p-8 border border-border shadow-xl shadow-black/20">
