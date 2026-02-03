@@ -148,12 +148,7 @@ export function ChannelList({
 
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {/* Ungrouped Channels (legacy - no add button, channels must be in groups) */}
-          {ungroupedChannels.length > 0 && (
-            <div className="mb-4 space-y-0.5">
-              {ungroupedChannels.map(renderChannel)}
-            </div>
-          )}
+          {/* Ungrouped channels are hidden - all channels must be in groups */}
 
           {/* Groups Header */}
           <div className="flex items-center justify-between px-2 py-1 mb-1">
