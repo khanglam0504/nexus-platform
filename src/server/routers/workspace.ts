@@ -290,6 +290,88 @@ export const workspaceRouter = router({
       });
     }),
 
+  // Get Master Agent for workspace
+  getMasterAgent: protectedProcedure
+    .input(z.object({ workspaceId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const workspace = await ctx.prisma.workspace.findUnique({
+        where: { id: input.workspaceId },
+        include: {
+          masterAgent: {
+            include: { context: true },
+          },
+          members: {
+            where: { userId: ctx.session.user.id },
+          },
+        },
+      });
+
+      if (!workspace || workspace.members.length === 0) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not a workspace member' });
+      }
+
+      if (!workspace.masterAgent) {
+        return null;
+      }
+
+      return {
+        ...workspace.masterAgent,
+        heartbeatStatus: getHeartbeatStatus(
+          workspace.masterAgent.lastHeartbeat,
+          workspace.masterAgent.heartbeatInterval
+        ),
+      };
+    }),
+
+  // Set Master Agent for workspace (OWNER only)
+  setMasterAgent: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        agentId: z.string().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if current user is OWNER
+      const currentUser = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (!currentUser || currentUser.role !== 'OWNER') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only OWNER can set Master Agent',
+        });
+      }
+
+      // Verify agent belongs to workspace (if setting)
+      if (input.agentId) {
+        const agent = await ctx.prisma.agent.findFirst({
+          where: {
+            id: input.agentId,
+            workspaceId: input.workspaceId,
+          },
+        });
+
+        if (!agent) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Agent not found in this workspace',
+          });
+        }
+      }
+
+      return ctx.prisma.workspace.update({
+        where: { id: input.workspaceId },
+        data: { masterAgentId: input.agentId },
+      });
+    }),
+
   // Remove member (OWNER or ADMIN)
   removeMember: protectedProcedure
     .input(

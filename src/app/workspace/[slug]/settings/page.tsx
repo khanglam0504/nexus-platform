@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { TeamSettings } from '@/components/workspace/team-settings';
 import { AgentSettings } from '@/components/agent';
 import { ThemeSettings } from '@/components/settings/theme-settings';
+import { MasterAgentSettings } from '@/components/settings/master-agent-settings';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -45,15 +46,23 @@ export default async function SettingsPage({ params }: Props) {
           <p className="text-muted-foreground">{workspace.name}</p>
         </div>
 
-        <TeamSettings
+        {/* Master Agent Settings - First and most important */}
+        <MasterAgentSettings
           workspaceId={workspace.id}
-          workspaceName={workspace.name}
           currentRole={currentRole}
         />
 
         <div className="mt-10 pt-10 border-t">
           <AgentSettings
             workspaceId={workspace.id}
+            currentRole={currentRole}
+          />
+        </div>
+
+        <div className="mt-10 pt-10 border-t">
+          <TeamSettings
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
             currentRole={currentRole}
           />
         </div>

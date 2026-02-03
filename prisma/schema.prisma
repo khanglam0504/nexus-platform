@@ -74,19 +74,39 @@ model User {
 
 
 model Workspace {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  image     String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  image         String?
+  masterAgentId String?  @map("master_agent_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   members       WorkspaceMember[]
   channels      Channel[]
   channelGroups ChannelGroup[]
   agents        Agent[]
+  masterAgent   Agent?   @relation("MasterAgent", fields: [masterAgentId], references: [id], onDelete: SetNull)
+  commands      Command[]
 
   @@map("workspaces")
+}
+
+// Commands from owner to Master Agent
+model Command {
+  id          String   @id @default(cuid())
+  content     String
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  response    String?
+  workspaceId String   @map("workspace_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@map("commands")
 }
 
 model ChannelGroup {
@@ -224,11 +244,12 @@ model Agent {
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
-  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  messages      Message[]
-  channelAgents ChannelAgent[]
-  debateAgents  DebateAgent[]
-  context       AgentContext?
+  workspace           Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  masterOfWorkspaces  Workspace[]     @relation("MasterAgent")
+  messages            Message[]
+  channelAgents       ChannelAgent[]
+  debateAgents        DebateAgent[]
+  context             AgentContext?
 
   @@map("agents")
 }

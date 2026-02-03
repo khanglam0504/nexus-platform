@@ -6,6 +6,7 @@ import { channelGroupRouter } from './channel-group';
 import { messageRouter } from './message';
 import { agentRouter } from './agent';
 import { debateRouter } from './debate';
+import { commandRouter } from './command';
 
 export const appRouter = router({
   auth: authRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   message: messageRouter,
   agent: agentRouter,
   debate: debateRouter,
+  command: commandRouter,
 });
 
 export type AppRouter = typeof appRouter;
