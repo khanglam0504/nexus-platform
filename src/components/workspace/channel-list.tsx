@@ -148,6 +148,21 @@ export function ChannelList({
 
       <ScrollArea className="flex-1">
         <div className="p-2">
+          {/* Ungrouped Channels */}
+          <div className="mb-4 space-y-0.5">
+            {ungroupedChannels.map(renderChannel)}
+            <CreateChannelDialog
+              workspaceId={workspace.id}
+              workspaceSlug={workspace.slug}
+              trigger={
+                <button className="channel-item w-full text-left text-muted-foreground hover:text-foreground">
+                  <Plus className="h-4 w-4" />
+                  <span className="text-xs">Add channel</span>
+                </button>
+              }
+            />
+          </div>
+
           {/* Groups Header */}
           <div className="flex items-center justify-between px-2 py-1 mb-1">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

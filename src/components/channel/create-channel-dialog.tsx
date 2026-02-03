@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Bot, Loader2, Plus, Link2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Props {
   workspaceId: string;
@@ -54,19 +55,33 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
       utils.channel.list.invalidate({ workspaceId });
       utils.channelGroup.list.invalidate({ workspaceId });
       router.refresh();
+      toast.success('Channel created successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to create channel');
     },
   });
 
   const handleCreate = () => {
-    if (name.trim()) {
+    // Sanitize: lowercase, only a-z 0-9 and hyphens, no consecutive hyphens, no leading/trailing hyphens
+    const sanitizedName = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    if (sanitizedName) {
       createChannel.mutate({
-        name: name.toLowerCase().replace(/\s+/g, '-'),
+        name: sanitizedName,
         workspaceId,
         description: description || undefined,
         sessionName: sessionName || undefined,
         groupId,
         agentIds: selectedAgentIds.length > 0 ? selectedAgentIds : undefined,
       });
+    } else {
+      toast.error('Invalid channel name. Use letters, numbers, and hyphens.');
     }
   };
 
@@ -104,7 +119,7 @@ export function CreateChannelDialog({ workspaceId, workspaceSlug, groupId, trigg
               <Input
                 id="new-channel-name"
                 value={name}
-                onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="new-channel"
                 className="pl-7"
               />
