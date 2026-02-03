@@ -44,7 +44,7 @@ export function Sidebar({ workspace, currentUser }: Props) {
   const ThemeIcon = !mounted ? Monitor : theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
 
   return (
-    <div className="w-16 bg-sidebar flex flex-col items-center py-3 gap-2">
+    <div className="w-16 bg-sidebar flex flex-col items-center py-3 gap-2 border-r border-border">
       {/* Home */}
       <Tooltip>
         <TooltipTrigger asChild>

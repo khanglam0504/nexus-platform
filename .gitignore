@@ -77,3 +77,9 @@ ck.md
 # Gemini CLI settings (symlink to .claude/.mcp.json)
 .gemini/settings.json
 .claude/settings.bak.json
+# SQLite database
+*.db
+*.sqlite
+
+# Temporary scripts
+create-demo-user.ts

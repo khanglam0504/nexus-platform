@@ -27,6 +27,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 import { AgentCard, CreateAgentDialog } from '@/components/agent';
 import {
   ChannelSettingsDialog,
@@ -135,7 +136,7 @@ export function ChannelList({
   return (
     <div className="w-64 bg-card border-r border-border flex flex-col">
       {/* Workspace Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between">
         <h2 className="font-semibold truncate">{workspace.name}</h2>
         <Link href={`/workspace/${workspace.slug}/settings`}>
           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -143,6 +144,7 @@ export function ChannelList({
           </Button>
         </Link>
       </div>
+      <Separator className="mx-4" />
 
       <ScrollArea className="flex-1">
         <div className="p-2">
