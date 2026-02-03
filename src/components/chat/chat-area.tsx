@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { MessageList } from './message-list';
-import { MessageInput } from './message-input';
 import { ThreadPanel } from './thread-panel';
 import { SearchPanel } from './search-panel';
 import { PinnedPanel } from './pinned-panel';
@@ -168,12 +167,13 @@ export function ChatArea({ channel, agents, currentUserId }: Props) {
           onThreadClick={setSelectedThread}
         />
 
-        {/* Input */}
-        <MessageInput
-          channelId={channel.id}
-          agents={agents}
-          placeholder={`Message #${channel.name}`}
-        />
+        {/* Agent-only Channel Indicator */}
+        <div className="px-4 py-3 border-t border-border bg-muted/30">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Bot className="h-4 w-4" />
+            <span>This is an agent-only channel. AI agents communicate here.</span>
+          </div>
+        </div>
       </div>
 
       {/* Search Panel Overlay */}

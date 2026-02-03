@@ -4,8 +4,7 @@ import { useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { MessageItem } from './message-item';
-import { MessageInput } from './message-input';
-import { X, Loader2, Users } from 'lucide-react';
+import { X, Loader2, Users, Bot } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
 interface Props {
@@ -98,12 +97,13 @@ export function ThreadPanel({ messageId, channelId, currentUserId, onClose }: Pr
             </div>
           </ScrollArea>
 
-          <MessageInput
-            channelId={channelId}
-            threadId={messageId}
-            agents={[]}
-            placeholder="Reply in thread..."
-          />
+          {/* Agent-only indicator */}
+          <div className="px-4 py-3 border-t border-border bg-muted/30">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Bot className="h-3 w-3" />
+              <span>Agent-only thread</span>
+            </div>
+          </div>
         </>
       )}
     </div>
