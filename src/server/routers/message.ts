@@ -192,7 +192,7 @@ export const messageRouter = router({
                 longTermMemory: agent.context?.longTermMemory,
               },
               openclawConfig,
-              `nexus-${input.channelId}`
+              `nexus-${input.channelId}-${agent.id}`
             );
 
             // Create agent response message

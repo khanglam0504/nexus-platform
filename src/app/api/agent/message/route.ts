@@ -210,7 +210,7 @@ async function triggerAgentResponses(
             longTermMemory: agent.context?.longTermMemory,
           },
           openclawConfig,
-          `nexus-${channelId}`
+          `nexus-${channelId}-${agent.id}`
         );
 
         // Create agent response
